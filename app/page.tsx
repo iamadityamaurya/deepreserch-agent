@@ -14,11 +14,29 @@ import {
   Download,
   Layers,
   Calculator,
+  BookOpen,
+  Code2,
+  MessageSquare,
+  Users,
+  TrendingUp,
+  Globe,
+  Wrench,
+  X,
+  ExternalLink,
+  ChevronRight,
+  Maximize2,
 } from "lucide-react";
 
 interface CalculationItem {
   expression: string;
   result: string;
+}
+
+interface ToolResultItem {
+  tool: string;
+  input: string;
+  result: string;
+  details?: any;
 }
 
 export default function Home() {
@@ -28,17 +46,22 @@ export default function Home() {
   const [currentNode, setCurrentNode] = useState("");
   const [notesCount, setNotesCount] = useState(0);
   const [calculationsCount, setCalculationsCount] = useState(0);
+  const [toolOutputsCount, setToolOutputsCount] = useState(0);
   const [iterationCount, setIterationCount] = useState(0);
   const [finalReport, setFinalReport] = useState("");
   const [calculations, setCalculations] = useState<CalculationItem[]>([]);
+  const [toolOutputs, setToolOutputs] = useState<ToolResultItem[]>([]);
+  const [activeModalTool, setActiveModalTool] = useState<ToolResultItem | null>(null);
   const [copied, setCopied] = useState(false);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
   const samplePrompts = [
-    "Compound interest calculation on $10,000 at 8% annual yield over 5 years",
-    "Battery capacity scaling from 250 Wh/kg to 500 Wh/kg percentage increase",
-    "Calculate 15% annual growth rate over 4 years for a $5M AI startup",
+    "ArXiv papers on quantum transformers",
+    "Analyze github.com/langchain-ai/langgraphjs",
+    "What is the population trend of India vs Germany?",
+    "Bitcoin crypto price performance and Reddit sentiment",
+    "Calculate 1500 * (1.08)^5 compound yield",
   ];
 
   const handleStartResearch = async (searchTopic?: string) => {
@@ -47,13 +70,16 @@ export default function Home() {
 
     setIsLoading(true);
     setTopic(query);
-    setStatusMessage("Initializing LangGraph Agent Workflow...");
+    setStatusMessage("Initializing LangGraph Multi-Tool Agent Workflow...");
     setCurrentNode("plan_research");
     setFinalReport("");
     setNotesCount(0);
     setCalculationsCount(0);
+    setToolOutputsCount(0);
     setIterationCount(0);
     setCalculations([]);
+    setToolOutputs([]);
+    setActiveModalTool(null);
 
     try {
       const response = await fetch("/api/research", {
@@ -88,12 +114,14 @@ export default function Home() {
                 if (data.statusMessage) setStatusMessage(data.statusMessage);
                 if (data.notesCount !== undefined) setNotesCount(data.notesCount);
                 if (data.calculationsCount !== undefined) setCalculationsCount(data.calculationsCount);
+                if (data.toolOutputsCount !== undefined) setToolOutputsCount(data.toolOutputsCount);
                 if (data.iterationCount !== undefined) setIterationCount(data.iterationCount);
                 if (data.finalReport) setFinalReport(data.finalReport);
               } else if (data.type === "complete") {
-                setStatusMessage("Analysis Completed!");
+                setStatusMessage("Multi-Tool Research Completed!");
                 if (data.finalReport) setFinalReport(data.finalReport);
                 if (data.calculations) setCalculations(data.calculations);
+                if (data.toolOutputs) setToolOutputs(data.toolOutputs);
               } else if (data.type === "error") {
                 setStatusMessage(`Error: ${data.message}`);
               }
@@ -124,7 +152,7 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Analysis_${topic.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.md`;
+    a.download = `Research_${topic.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -141,6 +169,27 @@ export default function Home() {
     return "border-gray-800 bg-gray-900/50 text-gray-400";
   };
 
+  const getToolIcon = (toolName: string) => {
+    switch (toolName.toLowerCase()) {
+      case "arxiv":
+        return <BookOpen className="w-4 h-4 text-blue-400" />;
+      case "github":
+        return <Code2 className="w-4 h-4 text-purple-400" />;
+      case "reddit":
+        return <MessageSquare className="w-4 h-4 text-orange-400" />;
+      case "population":
+        return <Users className="w-4 h-4 text-emerald-400" />;
+      case "finance":
+        return <TrendingUp className="w-4 h-4 text-emerald-400" />;
+      case "domain":
+        return <Globe className="w-4 h-4 text-cyan-400" />;
+      case "math":
+        return <Calculator className="w-4 h-4 text-amber-400" />;
+      default:
+        return <Wrench className="w-4 h-4 text-slate-400" />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500 selection:text-white">
       {/* Background Glow Overlay */}
@@ -155,16 +204,16 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-purple-300 bg-clip-text text-transparent">
-                QuantAI Agent
+                DeepResearch Multi-Tool Agent
               </h1>
-              <p className="text-xs text-slate-400">LangGraph LLM + Math Calculation Tool</p>
+              <p className="text-xs text-slate-400">Powered by LangGraph & Specialized Tools</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-950/60 border border-amber-500/30 text-amber-300">
-              <Calculator className="w-3.5 h-3.5 mr-1.5" />
-              Math Tool Enabled
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-950/60 border border-purple-500/30 text-purple-300">
+              <Layers className="w-3.5 h-3.5 mr-1.5" />
+              StateGraph Multi-Tool v2.0
             </span>
           </div>
         </div>
@@ -176,10 +225,10 @@ export default function Home() {
         <section className="space-y-4 max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-purple-400">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Autonomous Quantitative Reasoning Agent</span>
+            <span>Autonomous Multi-Tool Research Engine</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-            What prompt or calculation analysis would you like to solve?
+            Search ArXiv, GitHub, Reddit, Finance, Demographics, or Math
           </h2>
 
           <div className="relative max-w-2xl mx-auto">
@@ -189,7 +238,7 @@ export default function Home() {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleStartResearch()}
-                placeholder="e.g. Calculate 12% annual compounding on $25,000 for 7 years..."
+                placeholder="e.g. ArXiv papers on quantum transformers, or analyze github repo..."
                 disabled={isLoading}
                 className="w-full pl-5 pr-36 py-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-100 placeholder-slate-500 shadow-xl transition-all outline-none"
               />
@@ -201,12 +250,12 @@ export default function Home() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing</span>
+                    <span>Researching</span>
                   </>
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    <span>Analyze</span>
+                    <span>Research</span>
                   </>
                 )}
               </button>
@@ -251,10 +300,14 @@ export default function Home() {
               </div>
 
               {/* Metrics Pills */}
-              <div className="flex items-center space-x-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center space-x-2">
+                  <Wrench className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Tools Executed: {toolOutputsCount}</span>
+                </div>
                 <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center space-x-2">
                   <Calculator className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Math Tool Executions: {calculationsCount}</span>
+                  <span>Math: {calculationsCount}</span>
                 </div>
                 <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center space-x-2">
                   <FileText className="w-3.5 h-3.5 text-emerald-400" />
@@ -267,6 +320,34 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Tools Used Interactive Chips Bar */}
+            {toolOutputs.length > 0 && (
+              <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-2">
+                    <Wrench className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Tools Used by Agent (Click chip to view output)</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500">Click any tool to inspect data</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {toolOutputs.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveModalTool(item)}
+                      className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-purple-500/30 hover:border-purple-500 hover:bg-purple-950/40 text-xs font-medium text-slate-200 transition-all group shadow-sm"
+                    >
+                      {getToolIcon(item.tool)}
+                      <span className="capitalize font-semibold">{item.tool}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-purple-300 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Nodes Workflow Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className={`p-4 rounded-xl border transition-all ${getNodeClass("plan_research")}`}>
@@ -274,17 +355,17 @@ export default function Home() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Node 1</span>
                   <BrainCircuit className="w-4 h-4" />
                 </div>
-                <div className="font-bold text-sm">Plan Analysis</div>
-                <div className="text-xs mt-1 opacity-80">LLM plans math calculation tasks</div>
+                <div className="font-bold text-sm">Plan & Select Tools</div>
+                <div className="text-xs mt-1 opacity-80">Identifies intent & targeted tools</div>
               </div>
 
               <div className={`p-4 rounded-xl border transition-all ${getNodeClass("execute_tools")}`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold uppercase tracking-wider">Node 2</span>
-                  <Calculator className="w-4 h-4" />
+                  <Wrench className="w-4 h-4" />
                 </div>
-                <div className="font-bold text-sm">Execute Math Tool</div>
-                <div className="text-xs mt-1 opacity-80">Evaluates math expressions safely</div>
+                <div className="font-bold text-sm">Execute Tools</div>
+                <div className="text-xs mt-1 opacity-80">Runs ArXiv, GitHub, Reddit, Finance, etc.</div>
               </div>
 
               <div className={`p-4 rounded-xl border transition-all ${getNodeClass("synthesize_notes")}`}>
@@ -293,7 +374,7 @@ export default function Home() {
                   <Layers className="w-4 h-4" />
                 </div>
                 <div className="font-bold text-sm">Synthesize Notes</div>
-                <div className="text-xs mt-1 opacity-80">LLM analyzes math outputs</div>
+                <div className="text-xs mt-1 opacity-80">Combines multi-tool data outputs</div>
               </div>
 
               <div className={`p-4 rounded-xl border transition-all ${getNodeClass("generate_report")}`}>
@@ -302,7 +383,7 @@ export default function Home() {
                   <FileText className="w-4 h-4" />
                 </div>
                 <div className="font-bold text-sm">Generate Report</div>
-                <div className="text-xs mt-1 opacity-80">Compiles final Markdown report</div>
+                <div className="text-xs mt-1 opacity-80">Compiles final Markdown paper</div>
               </div>
             </div>
           </section>
@@ -315,9 +396,9 @@ export default function Home() {
               <div>
                 <h3 className="text-xl font-bold text-slate-100 flex items-center space-x-2">
                   <Sparkles className="w-5 h-5 text-purple-400" />
-                  <span>Quantitative Analysis Report</span>
+                  <span>Multi-Tool Deep Research Report</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Generated using LLM reasoning and Math Tool</p>
+                <p className="text-xs text-slate-400 mt-0.5">Synthesized using specialized research tool suite</p>
               </div>
 
               <div className="flex items-center space-x-3">
@@ -347,23 +428,36 @@ export default function Home() {
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalReport}</ReactMarkdown>
             </div>
 
-            {/* Calculations Card */}
-            {calculations.length > 0 && (
+            {/* Tool Executions Cards Grid */}
+            {toolOutputs.length > 0 && (
               <div className="border-t border-slate-800 pt-6 mt-8">
                 <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                  <Calculator className="w-4 h-4 text-amber-400" />
-                  <span>Math Tool Calculation Results ({calculations.length})</span>
+                  <Wrench className="w-4 h-4 text-purple-400" />
+                  <span>Executed Tools & Structured Data ({toolOutputs.length})</span>
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {calculations.map((calc, idx) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {toolOutputs.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between"
+                      onClick={() => setActiveModalTool(item)}
+                      className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-purple-500/50 cursor-pointer transition-all space-y-2 group"
                     >
-                      <span className="text-xs font-mono text-slate-300">{calc.expression}</span>
-                      <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 px-2 py-1 rounded border border-amber-500/30">
-                        = {calc.result}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-purple-300 flex items-center space-x-2">
+                          {getToolIcon(item.tool)}
+                          <span>{item.tool} Tool</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400 flex items-center space-x-1 group-hover:text-purple-300 transition-colors">
+                          <span>Inspect</span>
+                          <Maximize2 className="w-3 h-3" />
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        Query: <span className="text-slate-300 font-mono">{item.input}</span>
+                      </div>
+                      <div className="text-xs font-mono text-slate-300 whitespace-pre-wrap line-clamp-4 bg-slate-900/90 p-2.5 rounded-lg border border-slate-800">
+                        {item.result}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -372,6 +466,77 @@ export default function Home() {
           </section>
         )}
       </main>
+
+      {/* Tool Output Inspection Modal */}
+      {activeModalTool && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div
+            className="relative w-full max-w-3xl max-h-[85vh] bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl flex flex-col space-y-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-slate-800 border border-slate-700">
+                  {getToolIcon(activeModalTool.tool)}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-100 capitalize flex items-center space-x-2">
+                    <span>{activeModalTool.tool} Tool Output</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
+                      Executed
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    Query Input: "{activeModalTool.input}"
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setActiveModalTool(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Raw Tool Result
+                </label>
+                <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-200 whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                  {activeModalTool.result}
+                </pre>
+              </div>
+
+              {/* Structured Details View if Available */}
+              {activeModalTool.details && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Structured Payload
+                  </label>
+                  <pre className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono text-purple-300 overflow-x-auto">
+                    {JSON.stringify(activeModalTool.details, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-slate-800 pt-3 flex justify-end">
+              <button
+                onClick={() => setActiveModalTool(null)}
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-colors shadow-lg shadow-purple-600/20"
+              >
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

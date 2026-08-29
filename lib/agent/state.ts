@@ -1,4 +1,5 @@
 import { Annotation } from "@langchain/langgraph";
+import { ToolResult } from "./tools";
 
 export interface CalculationItem {
   expression: string;
@@ -15,6 +16,10 @@ export const ResearchAnnotation = Annotation.Root({
     default: () => [],
   }),
   calculations: Annotation<CalculationItem[]>({
+    reducer: (x, y) => x.concat(y ?? []),
+    default: () => [],
+  }),
+  toolOutputs: Annotation<ToolResult[]>({
     reducer: (x, y) => x.concat(y ?? []),
     default: () => [],
   }),

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         };
 
         try {
-          sendEvent({ type: "status", message: `Starting quantitative agent for "${topic}"...` });
+          sendEvent({ type: "status", message: `Starting multi-tool research agent on "${topic}"...` });
 
           const eventStream = await researchAgentGraph.streamEvents(
             { topic },
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
                   iterationCount: stateOutput.iterationCount,
                   notesCount: stateOutput.notes?.length || 0,
                   calculationsCount: stateOutput.calculations?.length || 0,
+                  toolOutputsCount: stateOutput.toolOutputs?.length || 0,
                   finalReport: stateOutput.finalReport || "",
                 });
               }
@@ -68,10 +69,11 @@ export async function POST(req: NextRequest) {
           const finalState = await researchAgentGraph.invoke({ topic });
           sendEvent({
             type: "complete",
-            statusMessage: "Analysis completed successfully!",
+            statusMessage: "Multi-tool research completed successfully!",
             finalReport: finalState.finalReport,
             notes: finalState.notes,
             calculations: finalState.calculations,
+            toolOutputs: finalState.toolOutputs,
           });
         } catch (error: unknown) {
           console.error("Agent execution stream error:", error);
