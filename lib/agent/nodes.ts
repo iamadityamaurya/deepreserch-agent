@@ -1,90 +1,164 @@
 import { ChatGroq } from "@langchain/groq";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ResearchState, CalculationItem, PlannedToolCall } from "./state";
 import {
   ToolResult,
+  CitationSource,
   AVAILABLE_TOOLS_CATALOG,
   calculateExpression,
+  searchWikipedia,
   searchArXiv,
   analyzeGithubRepo,
-  searchReddit,
-  getPopulationStats,
+  searchTechDiscussions,
+  getDemographics,
   getFinancialData,
   analyzeDomain,
   performWebSearch,
 } from "./tools";
 
-function getLLM() {
-  const groqApiKey = process.env.GROQ_API_KEY;
-  const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-
-  if (groqApiKey) {
-    return new ChatGroq({
-      model: groqModel,
-      apiKey: groqApiKey,
-      temperature: 0.2,
-    });
-  }
-
-  const googleApiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-  if (googleApiKey) {
-    return new ChatGoogleGenerativeAI({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      apiKey: googleApiKey,
-      temperature: 0.2,
-    });
-  }
-
-  try {
-    return new ChatGroq({
-      model: groqModel,
-      temperature: 0.2,
-    });
-  } catch {
-    return null;
-  }
+interface LLMInstanceInfo {
+  llm: BaseChatModel;
+  modelName: string;
+  provider: "groq" | "google";
 }
 
 /**
- * Extracts math expression candidates directly from text (e.g. "What is 2+2?" -> "2+2").
+ * Multi-Model LLM Factory with automatic fallback capabilities.
  */
-function extractDirectMathExpressions(text: string): string[] {
-  const expressions: string[] = [];
-  const mathRegex = /(?:\(?\d+(?:\.\d+)?\)?\s*[\+\-\*\/\^%]\s*)+\(?\d+(?:\.\d+)?\)?/g;
-  const matches = text.match(mathRegex);
+function getLLMInstances(preferredModel?: string): LLMInstanceInfo[] {
+  const instances: LLMInstanceInfo[] = [];
 
-  if (matches) {
-    for (const match of matches) {
-      const clean = match.trim();
-      if (clean && !expressions.includes(clean)) {
-        expressions.push(clean);
+  const groqApiKey = process.env.GROQ_API_KEY;
+  const googleApiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+
+  const targetGroqModel = preferredModel || process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
+  // 1. Primary Groq Model
+  if (groqApiKey) {
+    try {
+      instances.push({
+        llm: new ChatGroq({
+          model: targetGroqModel,
+          apiKey: groqApiKey,
+          temperature: 0.2,
+          maxRetries: 2,
+        }),
+        modelName: targetGroqModel,
+        provider: "groq",
+      });
+    } catch (e) {
+      console.warn("Error initializing primary Groq LLM:", e);
+    }
+
+    // 2. Fallback Groq Models (gpt-oss-20b, qwen3.8-27b)
+    const fallbacks = ["openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
+    for (const fb of fallbacks) {
+      if (targetGroqModel !== fb) {
+        try {
+          instances.push({
+            llm: new ChatGroq({
+              model: fb,
+              apiKey: groqApiKey,
+              temperature: 0.2,
+              maxRetries: 2,
+            }),
+            modelName: fb,
+            provider: "groq",
+          });
+        } catch (e) {
+          console.warn(`Error initializing Groq fallback ${fb}:`, e);
+        }
       }
     }
   }
 
-  return expressions;
+  // 3. Google Gemini Model
+  if (googleApiKey) {
+    const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    try {
+      instances.push({
+        llm: new ChatGoogleGenerativeAI({
+          model: geminiModel,
+          apiKey: googleApiKey,
+          temperature: 0.2,
+          maxRetries: 2,
+        }),
+        modelName: geminiModel,
+        provider: "google",
+      });
+    } catch (e) {
+      console.warn("Error initializing Gemini fallback:", e);
+    }
+  }
+
+  return instances;
 }
 
 /**
- * Helper to safely parse JSON from LLM output (stripping markdown codeblocks if present).
+ * Invokes LLMs with multi-provider fallback.
  */
-function safeParseJson<T>(raw: string, fallback: T): T {
+async function invokeWithFallback(
+  prompt: string,
+  preferredModel?: string
+): Promise<{ text: string; modelUsed: string }> {
+  const instances = getLLMInstances(preferredModel);
+
+  if (instances.length === 0) {
+    throw new Error("No LLM API keys configured. Please set GROQ_API_KEY or GOOGLE_API_KEY.");
+  }
+
+  let lastError: unknown = null;
+
+  for (const item of instances) {
+    try {
+      const response = await item.llm.invoke(prompt);
+      const text = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
+      if (text && text.trim().length > 0) {
+        return { text, modelUsed: `${item.provider}:${item.modelName}` };
+      }
+    } catch (err: any) {
+      console.warn(`LLM invocation failed on ${item.modelName} (${err?.message || err}). Trying next fallback...`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("All LLM providers failed to respond.");
+}
+
+/**
+ * Robust JSON extraction & repair utility for LLM responses.
+ */
+function extractAndParseJson<T>(raw: string, fallback: T): T {
+  if (!raw || typeof raw !== "string") return fallback;
+
+  let cleaned = raw
+    .replace(/^```(?:json)?\s*/gim, "")
+    .replace(/\s*```$/gm, "")
+    .trim();
+
   try {
-    const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*$/g, "").trim();
     return JSON.parse(cleaned) as T;
   } catch {
     const firstBrace = raw.indexOf("{");
     const lastBrace = raw.lastIndexOf("}");
+
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      let candidate = raw.substring(firstBrace, lastBrace + 1);
+      candidate = candidate
+        .replace(/,\s*([\}\]])/g, "$1")
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'");
+
       try {
-        const substr = raw.substring(firstBrace, lastBrace + 1);
-        return JSON.parse(substr) as T;
+        return JSON.parse(candidate) as T;
       } catch {
-        return fallback;
+        // Fallback
       }
     }
-    return fallback;
   }
+
+  return fallback;
 }
 
 /**
@@ -92,144 +166,165 @@ function safeParseJson<T>(raw: string, fallback: T): T {
  */
 function getFormattedToolsCatalog(): string {
   return AVAILABLE_TOOLS_CATALOG.map(
-    (t, i) => `${i + 1}. Tool: "${t.name}"\n   Description: ${t.description}\n   Input format: ${t.inputFormat}`
+    (t, i) => `${i + 1}. Tool Name: "${t.name}"\n   Capability: ${t.description}\n   Input Specification: ${t.inputFormat}`
   ).join("\n\n");
 }
 
 /**
- * NODE 1: Initial LLM Consultation & Tool Call Planning
- * Sends the user question along with all tool descriptions to the LLM.
- * Takes the LLM's initial answer and its requested tool calls with exact inputs.
+ * NODE 1: Initial Consultation & Intelligent Tool Decision
  */
 export async function planResearchNode(state: ResearchState): Promise<Partial<ResearchState>> {
-  const llm = getLLM();
-  const maxIterations = state.maxIterations || 3;
   const toolsDoc = getFormattedToolsCatalog();
+  const maxIterations = state.searchDepth === "deep" ? 4 : 2;
 
   let initialAnswer = "";
-  let planReasoning = `Analyzing question "${state.topic}" with LLM and tool suite...`;
+  let planReasoning = `Evaluating inquiry "${state.topic}"...`;
   let plannedTools: PlannedToolCall[] = [];
   let isEnough = false;
+  let modelUsed = state.modelUsed || "";
 
-  if (llm) {
-    const prompt = `You are a Principal AI Research Agent.
-A user asked the following research question:
+  const cleanTopic = state.topic.trim().toLowerCase();
+  const isSimpleGreeting = /^(hi|hello|hey|greetings|howdy|good\s*(morning|evening|afternoon|day)|who\s*are\s*you|what\s*can\s*you\s*do)[\.!\?]*$/.test(cleanTopic);
+
+  if (isSimpleGreeting) {
+    return {
+      iterationCount: 1,
+      maxIterations,
+      modelUsed: modelUsed || "direct-response",
+      initialAnswer: "Hello! I am your AI Deep Research Agent. I can directly answer your questions or autonomously execute specialized tools (ArXiv, GitHub, Live Finance, Demographics, Real DNS, Wikipedia, Tech Discussions, and Math AST) for deep empirical investigations. How can I help you today?",
+      planReasoning: "Standard conversational greeting detected. Answered directly without calling external tools.",
+      plannedToolCalls: [],
+      subtopics: [],
+      isEnough: true,
+      isComplete: true,
+      statusMessage: "Answered directly using AI knowledge (no external tools required).",
+    };
+  }
+
+  const prompt = `You are a Principal AI Deep Research Scientist.
+A user has submitted the following prompt or question:
 "${state.topic}"
 
-Below is the list of all available research tools and their descriptions:
+Below is your specialized external tool suite:
 ${toolsDoc}
 
-Your Task:
-1. Provide what you already know regarding this question from your own parametric knowledge ("initialAnswer").
-2. Determine what external tools are required to verify, calculate, gather up-to-date data, papers, code stats, or community insights.
-3. For EACH tool needed, provide the tool name and the EXACT input parameter (search query, repo name, math expression, or ticker) you want the system to pass to that tool.
-4. Decide if your initial answer is already 100% complete and self-contained ("isEnough": true), or if tools should be executed ("isEnough": false).
+YOUR INSTRUCTIONS:
+1. Direct Knowledge First: Provide what you already know regarding this question from your own parametric knowledge in "initialAnswer".
+2. Tool Necessity Decision:
+   - If you can fully, accurately, and authoritatively answer the user's question from your existing knowledge (e.g. general science, history, programming explanations, conceptual questions, philosophy, writing, logic):
+     -> Set "isEnough": true
+     -> Set "toolCalls": []
+     -> Set "reasoning": "Answered completely using internal knowledge; no external tools needed."
+   - ONLY request external tools if you genuinely need live external data, real-time crypto/stock prices, live GitHub repo stats, recent ArXiv papers, real DNS diagnostics, or specific demographic statistics that require verification.
+3. If tools ARE needed:
+   - Provide the tool name and the EXACT input parameter in "toolCalls".
+   - Set "isEnough": false.
 
 Respond ONLY in valid JSON matching this schema:
 {
-  "initialAnswer": "Detailed explanation of what you already know about this topic",
-  "reasoning": "Why these specific tools and inputs are needed to fully answer and verify the user's question",
+  "initialAnswer": "Comprehensive direct answer or baseline explanation",
+  "reasoning": "Why tools are or are NOT needed",
   "toolCalls": [
     {
       "tool": "tool_name",
-      "input": "exact query string or parameter to pass to the tool",
-      "reason": "why this tool and query are needed"
+      "input": "exact query or parameter",
+      "reason": "why this tool is needed"
     }
   ],
-  "isEnough": false
+  "isEnough": true
 }`;
 
-    try {
-      const response = await llm.invoke(prompt);
-      const content = typeof response.content === "string" ? response.content : "";
+  try {
+    const { text, modelUsed: used } = await invokeWithFallback(prompt, state.preferredModel);
+    modelUsed = used;
 
-      interface InitialPlanResponse {
-        initialAnswer?: string;
-        reasoning?: string;
-        toolCalls?: PlannedToolCall[];
-        isEnough?: boolean;
-      }
+    interface InitialPlanResponse {
+      initialAnswer?: string;
+      reasoning?: string;
+      toolCalls?: PlannedToolCall[];
+      isEnough?: boolean;
+    }
 
-      const parsed = safeParseJson<InitialPlanResponse>(content, {});
-      if (parsed.initialAnswer) {
-        initialAnswer = parsed.initialAnswer;
-      }
-      if (parsed.reasoning) {
-        planReasoning = parsed.reasoning;
-      }
-      if (Array.isArray(parsed.toolCalls) && parsed.toolCalls.length > 0) {
-        plannedTools = parsed.toolCalls.filter((t) => t.tool && t.input);
-      }
-      if (parsed.isEnough === true && plannedTools.length === 0) {
-        isEnough = true;
-      }
-    } catch (err) {
-      console.warn("LLM initial consultation error, using fallback:", err);
+    const parsed = extractAndParseJson<InitialPlanResponse>(text, {});
+    if (parsed.initialAnswer) {
+      initialAnswer = parsed.initialAnswer;
+    }
+    if (parsed.reasoning) {
+      planReasoning = parsed.reasoning;
+    }
+    if (Array.isArray(parsed.toolCalls) && parsed.toolCalls.length > 0) {
+      plannedTools = parsed.toolCalls.filter((t) => t.tool && t.input);
+    }
+    if (parsed.isEnough === false && plannedTools.length > 0) {
+      isEnough = false;
+    } else if (parsed.isEnough === true && plannedTools.length === 0) {
+      isEnough = true;
+    }
+  } catch (err) {
+    console.warn("LLM initial consultation error:", err);
+  }
+
+  // Heuristic verification trigger for explicit live queries
+  const topicLower = state.topic.toLowerCase();
+  const isMarketQuery = /(price|share\s*price|stock|quote|ticker|crypto|btc|eth|sol|nasdaq|market\s*cap)/i.test(topicLower);
+  const isAcademicQuery = /(arxiv|paper|research\s*paper|quantum\s*transformer)/i.test(topicLower);
+  const isRepoQuery = /(github\.com|github\s*repo|repository\s*stars)/i.test(topicLower);
+  const isDemoQuery = /(population\s*of|capital\s*of|demographics\s*of)/i.test(topicLower);
+  const isDnsQuery = /(dns\s*record|mx\s*record|whois|resolve\s*domain)/i.test(topicLower);
+
+  if (plannedTools.length === 0 && !isSimpleGreeting) {
+    if (isMarketQuery) {
+      plannedTools.push({ tool: "finance", input: state.topic, reason: "Fetch live market price and quote data" });
+      isEnough = false;
+    } else if (isAcademicQuery) {
+      plannedTools.push({ tool: "arxiv", input: state.topic, reason: "Search academic research literature on ArXiv" });
+      isEnough = false;
+    } else if (isRepoQuery) {
+      plannedTools.push({ tool: "github", input: state.topic, reason: "Inspect GitHub repository statistics" });
+      isEnough = false;
+    } else if (isDemoQuery) {
+      plannedTools.push({ tool: "demographics", input: state.topic, reason: "Fetch demographic country statistics" });
+      isEnough = false;
+    } else if (isDnsQuery) {
+      plannedTools.push({ tool: "dns_domain", input: state.topic, reason: "Resolve domain DNS records" });
+      isEnough = false;
     }
   }
 
-  // Fallback if LLM did not return tools and initial answer is empty
-  if (plannedTools.length === 0 && !isEnough) {
-    const topicLower = state.topic.toLowerCase();
-    const directMath = extractDirectMathExpressions(state.topic);
-
-    if (directMath.length > 0) {
-      for (const expr of directMath) {
-        plannedTools.push({ tool: "math", input: expr, reason: `Direct calculation of math expression ${expr}` });
-      }
-    }
-    if (topicLower.includes("arxiv") || topicLower.includes("paper") || topicLower.includes("quantum") || topicLower.includes("transformer")) {
-      plannedTools.push({ tool: "arxiv", input: state.topic, reason: "Search academic research literature on ArXiv" });
-    }
-    if (topicLower.includes("github") || topicLower.includes("repo") || topicLower.includes(".com/")) {
-      plannedTools.push({ tool: "github", input: state.topic, reason: "Analyze repository metrics and code on GitHub" });
-    }
-    if (topicLower.includes("reddit") || topicLower.includes("sentiment") || topicLower.includes("discussion")) {
-      plannedTools.push({ tool: "reddit", input: state.topic, reason: "Search community discussions and sentiment on Reddit" });
-    }
-    if (topicLower.includes("population") || topicLower.includes("demographic") || topicLower.includes("india") || topicLower.includes("china")) {
-      plannedTools.push({ tool: "population", input: state.topic, reason: "Fetch demographic population statistics" });
-    }
-    if (topicLower.includes("price") || topicLower.includes("crypto") || topicLower.includes("btc") || topicLower.includes("eth") || topicLower.includes("finance")) {
-      plannedTools.push({ tool: "finance", input: state.topic, reason: "Query live financial metrics and price data" });
-    }
-    if (topicLower.includes("domain") || topicLower.includes("whois") || topicLower.includes("dns")) {
-      plannedTools.push({ tool: "domain", input: state.topic, reason: "Analyze domain DNS and WHOIS registration" });
-    }
-
-    if (plannedTools.length === 0) {
-      plannedTools.push({ tool: "web_search", input: state.topic, reason: "Search the web for up-to-date information" });
-    }
+  if (plannedTools.length === 0) {
+    isEnough = true;
   }
 
   const subtopics = plannedTools.map((t) => `${t.tool.toUpperCase()}: "${t.input}"`);
 
   return {
     iterationCount: 1,
-    initialAnswer: initialAnswer || `Initial inquiry into "${state.topic}".`,
+    maxIterations,
+    modelUsed,
+    initialAnswer: initialAnswer || `Direct response to "${state.topic}".`,
     planReasoning,
     plannedToolCalls: plannedTools,
     subtopics,
     isEnough,
     isComplete: isEnough,
     statusMessage: isEnough
-      ? "LLM provided complete initial answer; proceeding to report."
-      : `Cycle 1/${maxIterations}: LLM provided initial answer and requested ${plannedTools.length} tool execution(s).`,
+      ? "Answered directly using AI knowledge (no external tools required)."
+      : `Dispatched ${plannedTools.length} specialized empirical tool(s) for verification.`,
   };
 }
 
 /**
- * NODE 2: Execute Selected Tools
- * Calls each tool with the exact input asked for by the LLM and gathers outputs.
+ * NODE 2: Concurrent Tool Execution & Source Ingestion
  */
 export async function executeToolsNode(state: ResearchState): Promise<Partial<ResearchState>> {
   const plannedTools = state.plannedToolCalls || [];
   const toolResults: ToolResult[] = [];
   const calculations: CalculationItem[] = [];
+  const collectedSources: CitationSource[] = [];
 
   if (plannedTools.length === 0) {
     return {
-      statusMessage: "No additional tool executions required in this cycle.",
+      statusMessage: "No external tools needed for this question.",
     };
   }
 
@@ -247,6 +342,10 @@ export async function executeToolsNode(state: ResearchState): Promise<Partial<Re
           }
           break;
         }
+        case "wikipedia": {
+          res = await searchWikipedia(query);
+          break;
+        }
         case "arxiv": {
           res = await searchArXiv(query);
           break;
@@ -255,18 +354,21 @@ export async function executeToolsNode(state: ResearchState): Promise<Partial<Re
           res = await analyzeGithubRepo(query);
           break;
         }
+        case "tech_discussions":
         case "reddit": {
-          res = await searchReddit(query);
+          res = await searchTechDiscussions(query);
           break;
         }
+        case "demographics":
         case "population": {
-          res = await getPopulationStats(query);
+          res = await getDemographics(query);
           break;
         }
         case "finance": {
           res = await getFinancialData(query);
           break;
         }
+        case "dns_domain":
         case "domain": {
           res = await analyzeDomain(query);
           break;
@@ -284,6 +386,10 @@ export async function executeToolsNode(state: ResearchState): Promise<Partial<Re
 
     res.reason = call.reason;
     toolResults.push(res);
+
+    if (Array.isArray(res.sources)) {
+      collectedSources.push(...res.sources);
+    }
   });
 
   await Promise.all(tasks);
@@ -291,108 +397,105 @@ export async function executeToolsNode(state: ResearchState): Promise<Partial<Re
   return {
     toolOutputs: toolResults,
     calculations,
+    sources: collectedSources,
     plannedToolCalls: [], // Reset after execution
-    statusMessage: `Cycle ${state.iterationCount}: Executed ${toolResults.length} tool(s). Sending all tool outputs to LLM for evaluation.`,
+    statusMessage: `Executed ${toolResults.length} tool(s). Analyzing findings...`,
   };
 }
 
 /**
- * NODE 3: Re-Analyze All Data with LLM & Check if Response is Enough
- * Sends all collected data back to LLM to evaluate if the response is sufficient
- * or if further follow-up tool calls with specific inputs are required.
+ * NODE 3: Multi-Source Synthesis & Convergence Evaluation
  */
 export async function synthesizeNotesNode(state: ResearchState): Promise<Partial<ResearchState>> {
-  const llm = getLLM();
   const currentIteration = state.iterationCount || 1;
-  const maxIterations = state.maxIterations || 3;
+  const maxIterations = state.maxIterations || 2;
   const allOutputs = state.toolOutputs || [];
   const toolsDoc = getFormattedToolsCatalog();
+
+  if (allOutputs.length === 0) {
+    return {
+      iterationCount: currentIteration,
+      isEnough: true,
+      isComplete: true,
+      plannedToolCalls: [],
+      statusMessage: "Synthesizing answer from AI knowledge.",
+    };
+  }
 
   const toolOutputsFormatted = allOutputs
     .map(
       (o, i) =>
-        `[Tool Output ${i + 1}] Tool: ${o.tool.toUpperCase()}\nInput Asked: "${o.input}"\nPurpose: ${o.reason || "Verification"}\nResult Data:\n${o.result}`
+        `[Tool Result ${i + 1}] Source: ${o.tool.toUpperCase()}\nInput Asked: "${o.input}"\nPurpose: ${o.reason || "Empirical Lookup"}\nFindings:\n${o.result}`
     )
     .join("\n\n---\n\n");
 
-  let synthesisNote = `Evaluated ${allOutputs.length} tool results against topic "${state.topic}".`;
+  let synthesisNote = `Synthesized ${allOutputs.length} empirical data point(s) against topic "${state.topic}".`;
   let isEnough = currentIteration >= maxIterations;
   let nextPlannedTools: PlannedToolCall[] = [];
   let nextReasoning = "";
 
-  if (llm) {
-    const evalPrompt = `You are the Lead Evaluator and Synthesizer in a Deep Research Agent system.
-User Research Question: "${state.topic}"
+  const evalPrompt = `You are the Lead Synthesizer for an AI Deep Research Agent.
+User Research Query: "${state.topic}"
 
-Your Initial Answer/Knowledge:
+Baseline Knowledge:
 ${state.initialAnswer || "None"}
 
-All Accumulated Tool Outputs and Empirical Data:
-${toolOutputsFormatted || "No tool data collected yet."}
+All Empirical Tool Results Collected:
+${toolOutputsFormatted || "No tool data gathered."}
 
-Prior Synthesis Notes:
+Prior Synthesis Evaluations:
 ${state.notes?.join("\n\n") || "None yet."}
 
-Available Tools (if more data is needed):
+Available Tools (if more specific evidence is needed):
 ${toolsDoc}
 
 Current Cycle: ${currentIteration} of ${maxIterations}
 
-Your Task:
-1. Synthesize all tool data with your initial knowledge, highlighting key metrics, facts, papers, repo details, or calculations.
-2. CRITICAL EVALUATION: Is this combined information ENOUGH to provide a comprehensive, fully verified, and definitive research report to the user?
-3. If NOT enough and current cycle < ${maxIterations}:
-   - Set "isEnough": false
-   - Provide 1 to 3 "followUpTools" with exact "tool" names, "input" queries/expressions, and "reason" why they are needed.
-4. If ENOUGH (or if we have all key answers):
+YOUR OBJECTIVES:
+1. Synthesize all tool data with baseline knowledge.
+2. CRITICAL EVALUATION: Is the current information sufficient to answer the question?
+   - In most cases, 1 round of tool execution is already enough!
+   - Only request follow-up tools if a vital piece of information is still completely missing.
+3. If ENOUGH (or if core answers are confirmed):
    - Set "isEnough": true
    - Set "followUpTools": []
 
 Respond ONLY in valid JSON matching this schema:
 {
-  "analysis": "Comprehensive analytical synthesis of what was learned from the tool executions",
+  "analysis": "Analytical synthesis of findings",
   "isEnough": true,
-  "reasoning": "Detailed justification on why the current data is or is not enough to answer the question",
-  "followUpTools": [
-    {
-      "tool": "tool_name",
-      "input": "exact query string or parameter to pass to the tool",
-      "reason": "why this tool and query are needed"
-    }
-  ]
+  "reasoning": "Why the current data is enough",
+  "followUpTools": []
 }`;
 
-    try {
-      const response = await llm.invoke(evalPrompt);
-      const content = typeof response.content === "string" ? response.content : "";
+  try {
+    const { text } = await invokeWithFallback(evalPrompt, state.preferredModel);
 
-      interface EvalResponse {
-        analysis?: string;
-        isEnough?: boolean;
-        reasoning?: string;
-        followUpTools?: PlannedToolCall[];
-      }
-
-      const parsed = safeParseJson<EvalResponse>(content, {});
-      if (parsed.analysis) {
-        synthesisNote = parsed.analysis;
-      }
-      if (parsed.reasoning) {
-        nextReasoning = parsed.reasoning;
-      }
-      if (typeof parsed.isEnough === "boolean") {
-        isEnough = parsed.isEnough || currentIteration >= maxIterations;
-      }
-      if (!isEnough && Array.isArray(parsed.followUpTools) && parsed.followUpTools.length > 0) {
-        nextPlannedTools = parsed.followUpTools.filter((t) => t.tool && t.input);
-      }
-    } catch (err) {
-      console.warn("LLM evaluation error, defaulting to complete:", err);
-      isEnough = true;
+    interface EvalResponse {
+      analysis?: string;
+      isEnough?: boolean;
+      reasoning?: string;
+      followUpTools?: PlannedToolCall[];
     }
+
+    const parsed = extractAndParseJson<EvalResponse>(text, {});
+    if (parsed.analysis) {
+      synthesisNote = parsed.analysis;
+    }
+    if (parsed.reasoning) {
+      nextReasoning = parsed.reasoning;
+    }
+    if (typeof parsed.isEnough === "boolean") {
+      isEnough = parsed.isEnough || currentIteration >= maxIterations;
+    }
+    if (!isEnough && Array.isArray(parsed.followUpTools) && parsed.followUpTools.length > 0) {
+      nextPlannedTools = parsed.followUpTools.filter((t) => t.tool && t.input);
+    }
+  } catch (err) {
+    console.warn("LLM evaluation error, defaulting to complete:", err);
+    isEnough = true;
   }
 
-  // Force completion if max iterations reached
   if (currentIteration >= maxIterations) {
     isEnough = true;
     nextPlannedTools = [];
@@ -408,88 +511,112 @@ Respond ONLY in valid JSON matching this schema:
     isEnough,
     isComplete: isEnough,
     statusMessage: isEnough
-      ? `Cycle ${currentIteration}: LLM evaluated data as ENOUGH. Preparing final report.`
-      : `Cycle ${currentIteration}: LLM evaluated data as incomplete. Requesting ${nextPlannedTools.length} follow-up tool call(s) for Cycle ${nextIteration}/${maxIterations}.`,
+      ? `Research findings verified. Compiling final report.`
+      : `Launching follow-up query for Cycle ${nextIteration}/${maxIterations}.`,
   };
 }
 
 /**
- * NODE 4: Generate Final Comprehensive Report
- * Combines initial LLM knowledge, all executed tool outputs, math calculations,
- * and iterative synthesis evaluations into a definitive Markdown report.
+ * NODE 4: Generate Final Markdown Response / Report
  */
 export async function generateReportNode(state: ResearchState): Promise<Partial<ResearchState>> {
-  const llm = getLLM();
   const outputs = state.toolOutputs || [];
-  const notesText = state.notes?.join("\n\n---\n\n") || "No intermediate notes.";
+  const sources = state.sources || [];
+  const notesText = state.notes?.join("\n\n---\n\n") || "";
   const calculationsText = state.calculations?.length
     ? state.calculations.map((c) => `- \`${c.expression}\` = **${c.result}**`).join("\n")
-    : "No direct arithmetic formulas executed.";
-
-  const toolsSummarySection = outputs.length > 0
-    ? "\n\n### Tool Execution Results & Empirical Evidence\n" +
-      outputs
-        .map(
-          (o, idx) =>
-            `#### [Source ${idx + 1}] \`${o.tool.toUpperCase()}\`: "${o.input}"\n*Purpose:* ${o.reason || "Lookup"}\n\n\`\`\`\n${o.result}\n\`\`\``
-        )
-        .join("\n\n")
     : "";
 
-  if (llm) {
-    try {
-      const finalPrompt = `You are a Principal AI Research Scientist.
-Generate a definitive, exhaustive, and structured research report based on the complete autonomous graph execution.
+  // CASE 1: NO TOOLS WERE NEEDED - Direct Answer
+  if (outputs.length === 0 && calculationsText.length === 0) {
+    const directPrompt = `You are a helpful, expert AI assistant.
+The user submitted the following prompt or question:
+"${state.topic}"
 
-User Research Topic: "${state.topic}"
-
-Your Initial Knowledge:
+Your baseline knowledge or draft response:
 ${state.initialAnswer}
 
-Synthesized Analytical Evaluations across Cycles:
-${notesText}
+Provide a direct, high-quality, articulate, and well-structured markdown response.
+- If it is a greeting or brief conversational message (like "hi" or "who are you"), respond in a polite, helpful, and natural tone.
+- If it is a technical, scientific, code, or conceptual question, format with clean markdown headings, bullet points, and code blocks as appropriate.
+- Do NOT generate fake tool logs, "Empirical Evidence" headers, or claim you executed external tools when none were used.`;
 
-Mathematical Calculations:
-${calculationsText}
-
-${toolsSummarySection}
-
-Report Requirements:
-1. # Comprehensive Title
-2. ## Executive Summary (Direct, thorough answer integrating initial knowledge and verified tool findings)
-3. ## In-Depth Analysis & Key Findings (Organized into structured subsections citing specific data, repositories, papers, or market indicators)
-4. ## Empirical Verification & Data Table (Highlight specific numbers, calculations, ArXiv authors, GitHub stars, or census data)
-5. ## Actionable Insights & Strategic Conclusion
-6. Format in clean, beautiful GitHub Flavored Markdown.`;
-
-      const response = await llm.invoke(finalPrompt);
-      const report = typeof response.content === "string" ? response.content : "";
-      if (report) {
+    try {
+      const { text } = await invokeWithFallback(directPrompt, state.preferredModel);
+      if (text && text.trim().length > 0) {
         return {
-          finalReport: report,
-          statusMessage: "Multi-Tool Deep Research Completed!",
+          finalReport: text,
+          statusMessage: "Response completed!",
         };
       }
     } catch (err) {
-      console.warn("LLM final report generation error:", err);
+      console.warn("Direct response LLM error:", err);
     }
+
+    return {
+      finalReport: state.initialAnswer || `Response to: "${state.topic}".`,
+      statusMessage: "Response completed!",
+    };
   }
 
-  // Fallback report
-  let fallbackReport = `# Multi-Tool Deep Research Report: ${state.topic}\n\n`;
-  fallbackReport += `## Executive Summary\n${state.initialAnswer}\n\n${notesText}\n\n`;
-  if (state.calculations?.length) {
-    fallbackReport += `## Calculations\n${calculationsText}\n\n`;
+  // CASE 2: TOOLS WERE EXECUTED - Crisp, To-The-Point Synthesis Report
+  const toolsSummarySection = outputs.length > 0
+    ? "\n\n### Empirical Findings:\n" +
+      outputs
+        .map(
+          (o, idx) =>
+            `- **${o.tool.toUpperCase()}** (${o.input}): ${o.result.slice(0, 350)}`
+        )
+        .join("\n")
+    : "";
+
+  const citationsSection = sources.length > 0
+    ? "\n\n### Sources:\n" +
+      sources.slice(0, 5).map((s, idx) => `- [${s.title}](${s.url})`).join("\n")
+    : "";
+
+  const finalPrompt = `You are a crisp, high-impact AI Research Analyst.
+The user asked: "${state.topic}"
+
+Research Findings & Collected Evidence:
+${state.initialAnswer}
+
+Synthesis Notes:
+${notesText}
+${calculationsText ? `\nCalculations:\n${calculationsText}` : ""}
+${toolsSummarySection}
+${citationsSection}
+
+INSTRUCTIONS FOR A CONCISE, TO-THE-POINT ANSWER:
+1. **Direct Answer**: Start immediately with a direct, clear answer to the user's question (2-4 sentences max). Do NOT add filler like "Prepared by...", dates, or formal letters.
+2. **Key Insights & Highlights**: 3-5 concise bullet points summarizing the most important facts, metrics, or takeaways.
+3. **Key Data & Citations**: Include any relevant numbers, calculation results, or links cleanly in a compact format.
+4. Keep the entire response concise, high-density, beautifully formatted, and easy to read.`;
+
+  try {
+    const { text } = await invokeWithFallback(finalPrompt, state.preferredModel);
+    if (text && text.trim().length > 0) {
+      return {
+        finalReport: text,
+        statusMessage: "Research Completed!",
+      };
+    }
+  } catch (err) {
+    console.warn("LLM report generation fallback:", err);
   }
-  if (toolsSummarySection) {
-    fallbackReport += `${toolsSummarySection}\n\n`;
+
+  // Fallback structured report
+  let fallbackReport = `### Answer: ${state.topic}\n\n`;
+  fallbackReport += `${state.initialAnswer}\n\n`;
+  if (calculationsText) {
+    fallbackReport += `**Calculations:**\n${calculationsText}\n\n`;
   }
-  fallbackReport += `## Conclusion\nAutonomous multi-cycle graph research completed for: "${state.topic}".`;
+  if (citationsSection) {
+    fallbackReport += `${citationsSection}\n\n`;
+  }
 
   return {
     finalReport: fallbackReport,
-    statusMessage: "Multi-Tool Deep Research Completed!",
+    statusMessage: "Research Completed!",
   };
 }
-
-

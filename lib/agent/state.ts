@@ -1,5 +1,5 @@
 import { Annotation } from "@langchain/langgraph";
-import { ToolResult } from "./tools";
+import { ToolResult, CitationSource } from "./tools";
 
 export interface CalculationItem {
   expression: string;
@@ -14,6 +14,18 @@ export interface PlannedToolCall {
 
 export const ResearchAnnotation = Annotation.Root({
   topic: Annotation<string>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => "",
+  }),
+  searchDepth: Annotation<"standard" | "deep">({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => "standard",
+  }),
+  preferredModel: Annotation<string>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => "",
+  }),
+  modelUsed: Annotation<string>({
     reducer: (x, y) => (y !== undefined ? y : x),
     default: () => "",
   }),
@@ -41,6 +53,20 @@ export const ResearchAnnotation = Annotation.Root({
     reducer: (x, y) => x.concat(y ?? []),
     default: () => [],
   }),
+  sources: Annotation<CitationSource[]>({
+    reducer: (x, y) => {
+      const combined = [...x, ...(y ?? [])];
+      // Deduplicate sources by URL
+      const uniqueMap = new Map<string, CitationSource>();
+      for (const s of combined) {
+        if (s.url && !uniqueMap.has(s.url)) {
+          uniqueMap.set(s.url, s);
+        }
+      }
+      return Array.from(uniqueMap.values());
+    },
+    default: () => [],
+  }),
   notes: Annotation<string[]>({
     reducer: (x, y) => x.concat(y ?? []),
     default: () => [],
@@ -51,7 +77,7 @@ export const ResearchAnnotation = Annotation.Root({
   }),
   maxIterations: Annotation<number>({
     reducer: (x, y) => (y !== undefined ? y : x),
-    default: () => 3,
+    default: () => 2,
   }),
   isEnough: Annotation<boolean>({
     reducer: (x, y) => (y !== undefined ? y : x),
@@ -63,7 +89,7 @@ export const ResearchAnnotation = Annotation.Root({
   }),
   statusMessage: Annotation<string>({
     reducer: (x, y) => (y !== undefined ? y : x),
-    default: () => "Initializing research...",
+    default: () => "Initializing research graph...",
   }),
   finalReport: Annotation<string>({
     reducer: (x, y) => (y !== undefined ? y : x),

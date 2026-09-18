@@ -7,6 +7,8 @@ const RequestSchema = z.object({
     .string()
     .min(2, "Topic must be at least 2 characters long")
     .max(500, "Topic must be under 500 characters"),
+  searchDepth: z.enum(["standard", "deep"]).optional().default("standard"),
+  preferredModel: z.string().optional(),
 });
 
 export const runtime = "nodejs";
@@ -23,31 +25,56 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic } = parseResult.data;
+    const { topic, searchDepth, preferredModel } = parseResult.data;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        let isClosed = false;
+
         const sendEvent = (data: Record<string, unknown>) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+          if (isClosed) return;
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+          } catch (e) {
+            console.warn("Error enqueuing SSE message:", e);
+          }
         };
+
+        // Keep-alive heartbeat every 10 seconds
+        const heartbeatInterval = setInterval(() => {
+          if (!isClosed) {
+            try {
+              controller.enqueue(encoder.encode(`: ping\n\n`));
+            } catch {
+              clearInterval(heartbeatInterval);
+            }
+          }
+        }, 10000);
 
         try {
           sendEvent({
             type: "status",
-            message: `Graph initialized: Starting multi-cycle research on "${topic}"...`,
+            message: `Starting ${searchDepth} deep research on "${topic}"...`,
+            searchDepth,
           });
 
           let accumulatedToolOutputs: unknown[] = [];
           let accumulatedCalculations: unknown[] = [];
           let accumulatedNotes: string[] = [];
+          let accumulatedSources: unknown[] = [];
           let initialAnswer = "";
           let lastReport = "";
           let lastReasoning = "";
           let isEnough = false;
+          let modelUsed = "";
 
           const graphStream = await researchAgentGraph.stream(
-            { topic },
+            {
+              topic,
+              searchDepth,
+              preferredModel: preferredModel || "",
+            },
             { streamMode: "updates" }
           );
 
@@ -65,6 +92,9 @@ export async function POST(req: NextRequest) {
               if (typeof out.isEnough === "boolean") {
                 isEnough = out.isEnough;
               }
+              if (typeof out.modelUsed === "string" && out.modelUsed) {
+                modelUsed = out.modelUsed;
+              }
               if (Array.isArray(out.toolOutputs)) {
                 accumulatedToolOutputs = accumulatedToolOutputs.concat(out.toolOutputs);
               }
@@ -73,6 +103,9 @@ export async function POST(req: NextRequest) {
               }
               if (Array.isArray(out.notes)) {
                 accumulatedNotes = accumulatedNotes.concat(out.notes);
+              }
+              if (Array.isArray(out.sources)) {
+                accumulatedSources = accumulatedSources.concat(out.sources);
               }
               if (typeof out.finalReport === "string" && out.finalReport) {
                 lastReport = out.finalReport;
@@ -86,15 +119,19 @@ export async function POST(req: NextRequest) {
                 node: nodeName,
                 statusMessage: out.statusMessage || `Completed ${nodeName}`,
                 iterationCount: out.iterationCount,
+                maxIterations: out.maxIterations,
                 initialAnswer,
                 isEnough,
+                modelUsed,
                 planReasoning: lastReasoning,
                 notesCount: accumulatedNotes.length,
                 calculationsCount: accumulatedCalculations.length,
                 toolOutputsCount: accumulatedToolOutputs.length,
+                sourcesCount: accumulatedSources.length,
                 toolOutputs: accumulatedToolOutputs,
                 calculations: accumulatedCalculations,
                 notes: accumulatedNotes,
+                sources: accumulatedSources,
                 finalReport: lastReport,
               });
             }
@@ -102,13 +139,15 @@ export async function POST(req: NextRequest) {
 
           sendEvent({
             type: "complete",
-            statusMessage: "Multi-tool research completed successfully!",
+            statusMessage: "Multi-Tool Deep Research completed successfully!",
             initialAnswer,
             isEnough,
+            modelUsed,
             finalReport: lastReport,
             notes: accumulatedNotes,
             calculations: accumulatedCalculations,
             toolOutputs: accumulatedToolOutputs,
+            sources: accumulatedSources,
             planReasoning: lastReasoning,
           });
         } catch (error: unknown) {
@@ -116,6 +155,8 @@ export async function POST(req: NextRequest) {
           const errMessage = error instanceof Error ? error.message : "An unexpected error occurred";
           sendEvent({ type: "error", message: errMessage });
         } finally {
+          clearInterval(heartbeatInterval);
+          isClosed = true;
           controller.close();
         }
       },
