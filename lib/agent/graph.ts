@@ -8,12 +8,25 @@ import {
 } from "./nodes";
 
 /**
- * Conditional router edge to evaluate research depth.
+ * Conditional router after initial consultation / planning.
  */
-function shouldContinue(state: ResearchState): "plan_research" | "generate_report" {
-  // Perform exactly 1 cycle before generating the final report
-  if ((state.iterationCount || 0) < 1) {
-    return "plan_research";
+function afterPlan(state: ResearchState): "execute_tools" | "generate_report" {
+  if (state.isEnough || (state.plannedToolCalls || []).length === 0) {
+    return "generate_report";
+  }
+  return "execute_tools";
+}
+
+/**
+ * Conditional router after re-evaluating all tool outputs with LLM.
+ */
+function afterEvaluation(state: ResearchState): "execute_tools" | "generate_report" {
+  if (state.isEnough || state.isComplete || (state.plannedToolCalls || []).length === 0) {
+    return "generate_report";
+  }
+  const maxIterations = state.maxIterations || 3;
+  if ((state.iterationCount || 0) <= maxIterations) {
+    return "execute_tools";
   }
   return "generate_report";
 }
@@ -25,10 +38,13 @@ const workflow = new StateGraph(ResearchAnnotation)
   .addNode("synthesize_notes", synthesizeNotesNode)
   .addNode("generate_report", generateReportNode)
   .addEdge(START, "plan_research")
-  .addEdge("plan_research", "execute_tools")
+  .addConditionalEdges("plan_research", afterPlan, {
+    execute_tools: "execute_tools",
+    generate_report: "generate_report",
+  })
   .addEdge("execute_tools", "synthesize_notes")
-  .addConditionalEdges("synthesize_notes", shouldContinue, {
-    plan_research: "plan_research",
+  .addConditionalEdges("synthesize_notes", afterEvaluation, {
+    execute_tools: "execute_tools",
     generate_report: "generate_report",
   })
   .addEdge("generate_report", END);

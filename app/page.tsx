@@ -36,6 +36,7 @@ interface ToolResultItem {
   tool: string;
   input: string;
   result: string;
+  reason?: string;
   details?: any;
 }
 
@@ -44,6 +45,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [currentNode, setCurrentNode] = useState("");
+  const [initialAnswer, setInitialAnswer] = useState("");
+  const [isEnough, setIsEnough] = useState(false);
+  const [planReasoning, setPlanReasoning] = useState("");
+  const [notes, setNotes] = useState<string[]>([]);
   const [notesCount, setNotesCount] = useState(0);
   const [calculationsCount, setCalculationsCount] = useState(0);
   const [toolOutputsCount, setToolOutputsCount] = useState(0);
@@ -72,6 +77,10 @@ export default function Home() {
     setTopic(query);
     setStatusMessage("Initializing LangGraph Multi-Tool Agent Workflow...");
     setCurrentNode("plan_research");
+    setInitialAnswer("");
+    setIsEnough(false);
+    setPlanReasoning("");
+    setNotes([]);
     setFinalReport("");
     setNotesCount(0);
     setCalculationsCount(0);
@@ -112,16 +121,26 @@ export default function Home() {
                 setCurrentNode(data.node);
               } else if (data.type === "progress") {
                 if (data.statusMessage) setStatusMessage(data.statusMessage);
+                if (data.initialAnswer) setInitialAnswer(data.initialAnswer);
+                if (data.isEnough !== undefined) setIsEnough(data.isEnough);
+                if (data.planReasoning) setPlanReasoning(data.planReasoning);
+                if (data.notes) setNotes(data.notes);
                 if (data.notesCount !== undefined) setNotesCount(data.notesCount);
                 if (data.calculationsCount !== undefined) setCalculationsCount(data.calculationsCount);
                 if (data.toolOutputsCount !== undefined) setToolOutputsCount(data.toolOutputsCount);
                 if (data.iterationCount !== undefined) setIterationCount(data.iterationCount);
+                if (data.toolOutputs) setToolOutputs(data.toolOutputs);
+                if (data.calculations) setCalculations(data.calculations);
                 if (data.finalReport) setFinalReport(data.finalReport);
               } else if (data.type === "complete") {
                 setStatusMessage("Multi-Tool Research Completed!");
                 if (data.finalReport) setFinalReport(data.finalReport);
+                if (data.initialAnswer) setInitialAnswer(data.initialAnswer);
+                if (data.isEnough !== undefined) setIsEnough(data.isEnough);
                 if (data.calculations) setCalculations(data.calculations);
                 if (data.toolOutputs) setToolOutputs(data.toolOutputs);
+                if (data.planReasoning) setPlanReasoning(data.planReasoning);
+                if (data.notes) setNotes(data.notes);
               } else if (data.type === "error") {
                 setStatusMessage(`Error: ${data.message}`);
               }
@@ -315,10 +334,54 @@ export default function Home() {
                 </div>
                 <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center space-x-2">
                   <Layers className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Cycles: {iterationCount}/1</span>
+                  <span>Cycles: {iterationCount}/3</span>
                 </div>
               </div>
             </div>
+
+            {/* LLM Initial Parametric Knowledge */}
+            {initialAnswer && (
+              <div className="bg-indigo-950/20 border border-indigo-800/40 rounded-xl p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-indigo-300 font-semibold uppercase tracking-wider">
+                    <BrainCircuit className="w-4 h-4 text-indigo-400" />
+                    <span>LLM Direct Initial Knowledge</span>
+                  </div>
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${isEnough ? "bg-emerald-950/80 text-emerald-300 border-emerald-700" : "bg-purple-950/80 text-purple-300 border-purple-700"}`}>
+                    {isEnough ? "Status: Information Evaluated as Complete" : "Status: Executing & Verifying Tools"}
+                  </span>
+                </div>
+                <p className="text-slate-200 leading-relaxed font-sans">{initialAnswer}</p>
+              </div>
+            )}
+
+            {/* LLM Agent Reasoning & Planning Banner */}
+            {planReasoning && (
+              <div className="bg-purple-950/20 border border-purple-800/40 rounded-xl p-4 space-y-2 text-xs">
+                <div className="flex items-center space-x-2 text-purple-300 font-semibold uppercase tracking-wider">
+                  <Wrench className="w-4 h-4" />
+                  <span>Tool Intent & Query Justification</span>
+                </div>
+                <p className="text-slate-200 leading-relaxed font-sans">{planReasoning}</p>
+              </div>
+            )}
+
+            {/* Synthesized Notes Highlights */}
+            {notes.length > 0 && (
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-2 text-xs">
+                <div className="flex items-center space-x-2 text-emerald-400 font-semibold uppercase tracking-wider">
+                  <FileText className="w-4 h-4" />
+                  <span>Iterative Synthesis Notes ({notes.length})</span>
+                </div>
+                <div className="space-y-1 text-slate-300">
+                  {notes.map((n, i) => (
+                    <div key={i} className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800/80 whitespace-pre-wrap">
+                      {n}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Tools Used Interactive Chips Bar */}
             {toolOutputs.length > 0 && (
@@ -326,7 +389,7 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-2">
                     <Wrench className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Tools Used by Agent (Click chip to view output)</span>
+                    <span>Tools Executed by Agent (Click chip to view reasoning & output)</span>
                   </span>
                   <span className="text-[11px] text-slate-500">Click any tool to inspect data</span>
                 </div>
@@ -356,7 +419,7 @@ export default function Home() {
                   <BrainCircuit className="w-4 h-4" />
                 </div>
                 <div className="font-bold text-sm">Plan & Select Tools</div>
-                <div className="text-xs mt-1 opacity-80">Identifies intent & targeted tools</div>
+                <div className="text-xs mt-1 opacity-80">LLM reasons on missing facts & picks tools</div>
               </div>
 
               <div className={`p-4 rounded-xl border transition-all ${getNodeClass("execute_tools")}`}>
@@ -373,8 +436,8 @@ export default function Home() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Node 3</span>
                   <Layers className="w-4 h-4" />
                 </div>
-                <div className="font-bold text-sm">Synthesize Notes</div>
-                <div className="text-xs mt-1 opacity-80">Combines multi-tool data outputs</div>
+                <div className="font-bold text-sm">Analyze & Synthesize</div>
+                <div className="text-xs mt-1 opacity-80">Evaluates tool results back into graph</div>
               </div>
 
               <div className={`p-4 rounded-xl border transition-all ${getNodeClass("generate_report")}`}>
@@ -383,7 +446,7 @@ export default function Home() {
                   <FileText className="w-4 h-4" />
                 </div>
                 <div className="font-bold text-sm">Generate Report</div>
-                <div className="text-xs mt-1 opacity-80">Compiles final Markdown paper</div>
+                <div className="text-xs mt-1 opacity-80">Compiles comprehensive deep research</div>
               </div>
             </div>
           </section>
@@ -455,6 +518,11 @@ export default function Home() {
                       <div className="text-[11px] text-slate-500 truncate">
                         Query: <span className="text-slate-300 font-mono">{item.input}</span>
                       </div>
+                      {item.reason && (
+                        <div className="text-[11px] text-purple-300/80 italic">
+                          Purpose: {item.reason}
+                        </div>
+                      )}
                       <div className="text-xs font-mono text-slate-300 whitespace-pre-wrap line-clamp-4 bg-slate-900/90 p-2.5 rounded-lg border border-slate-800">
                         {item.result}
                       </div>
@@ -503,6 +571,13 @@ export default function Home() {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {activeModalTool.reason && (
+                <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-800/40 text-xs">
+                  <span className="font-semibold text-purple-300">Agent Purpose / Reasoning: </span>
+                  <span className="text-slate-200">{activeModalTool.reason}</span>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Raw Tool Result

@@ -6,10 +6,28 @@ export interface CalculationItem {
   result: string;
 }
 
+export interface PlannedToolCall {
+  tool: string;
+  input: string;
+  reason: string;
+}
+
 export const ResearchAnnotation = Annotation.Root({
   topic: Annotation<string>({
     reducer: (x, y) => (y !== undefined ? y : x),
     default: () => "",
+  }),
+  initialAnswer: Annotation<string>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => "",
+  }),
+  planReasoning: Annotation<string>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => "",
+  }),
+  plannedToolCalls: Annotation<PlannedToolCall[]>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => [],
   }),
   subtopics: Annotation<string[]>({
     reducer: (x, y) => (y !== undefined ? y : x),
@@ -30,6 +48,18 @@ export const ResearchAnnotation = Annotation.Root({
   iterationCount: Annotation<number>({
     reducer: (x, y) => (y !== undefined ? y : x),
     default: () => 0,
+  }),
+  maxIterations: Annotation<number>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => 3,
+  }),
+  isEnough: Annotation<boolean>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => false,
+  }),
+  isComplete: Annotation<boolean>({
+    reducer: (x, y) => (y !== undefined ? y : x),
+    default: () => false,
   }),
   statusMessage: Annotation<string>({
     reducer: (x, y) => (y !== undefined ? y : x),

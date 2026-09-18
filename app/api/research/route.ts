@@ -33,47 +33,83 @@ export async function POST(req: NextRequest) {
         };
 
         try {
-          sendEvent({ type: "status", message: `Starting multi-tool research agent on "${topic}"...` });
+          sendEvent({
+            type: "status",
+            message: `Graph initialized: Starting multi-cycle research on "${topic}"...`,
+          });
 
-          const eventStream = await researchAgentGraph.streamEvents(
+          let accumulatedToolOutputs: unknown[] = [];
+          let accumulatedCalculations: unknown[] = [];
+          let accumulatedNotes: string[] = [];
+          let initialAnswer = "";
+          let lastReport = "";
+          let lastReasoning = "";
+          let isEnough = false;
+
+          const graphStream = await researchAgentGraph.stream(
             { topic },
-            { version: "v2" }
+            { streamMode: "updates" }
           );
 
-          for await (const event of eventStream) {
-            // Stream node state updates
-            if (event.event === "on_chain_end" && event.name === "LangGraph") {
-              const stateOutput = event.data?.output;
-              if (stateOutput) {
-                sendEvent({
-                  type: "progress",
-                  statusMessage: stateOutput.statusMessage,
-                  iterationCount: stateOutput.iterationCount,
-                  notesCount: stateOutput.notes?.length || 0,
-                  calculationsCount: stateOutput.calculations?.length || 0,
-                  toolOutputsCount: stateOutput.toolOutputs?.length || 0,
-                  finalReport: stateOutput.finalReport || "",
-                });
+          for await (const chunk of graphStream) {
+            for (const [nodeName, nodeOutput] of Object.entries(chunk)) {
+              sendEvent({
+                type: "node_start",
+                node: nodeName,
+              });
+
+              const out = nodeOutput as Record<string, any>;
+              if (typeof out.initialAnswer === "string" && out.initialAnswer) {
+                initialAnswer = out.initialAnswer;
               }
-            } else if (event.event === "on_chain_start") {
-              if (event.name) {
-                sendEvent({
-                  type: "node_start",
-                  node: event.name,
-                });
+              if (typeof out.isEnough === "boolean") {
+                isEnough = out.isEnough;
               }
+              if (Array.isArray(out.toolOutputs)) {
+                accumulatedToolOutputs = accumulatedToolOutputs.concat(out.toolOutputs);
+              }
+              if (Array.isArray(out.calculations)) {
+                accumulatedCalculations = accumulatedCalculations.concat(out.calculations);
+              }
+              if (Array.isArray(out.notes)) {
+                accumulatedNotes = accumulatedNotes.concat(out.notes);
+              }
+              if (typeof out.finalReport === "string" && out.finalReport) {
+                lastReport = out.finalReport;
+              }
+              if (typeof out.planReasoning === "string" && out.planReasoning) {
+                lastReasoning = out.planReasoning;
+              }
+
+              sendEvent({
+                type: "progress",
+                node: nodeName,
+                statusMessage: out.statusMessage || `Completed ${nodeName}`,
+                iterationCount: out.iterationCount,
+                initialAnswer,
+                isEnough,
+                planReasoning: lastReasoning,
+                notesCount: accumulatedNotes.length,
+                calculationsCount: accumulatedCalculations.length,
+                toolOutputsCount: accumulatedToolOutputs.length,
+                toolOutputs: accumulatedToolOutputs,
+                calculations: accumulatedCalculations,
+                notes: accumulatedNotes,
+                finalReport: lastReport,
+              });
             }
           }
 
-          // Final snapshot read
-          const finalState = await researchAgentGraph.invoke({ topic });
           sendEvent({
             type: "complete",
             statusMessage: "Multi-tool research completed successfully!",
-            finalReport: finalState.finalReport,
-            notes: finalState.notes,
-            calculations: finalState.calculations,
-            toolOutputs: finalState.toolOutputs,
+            initialAnswer,
+            isEnough,
+            finalReport: lastReport,
+            notes: accumulatedNotes,
+            calculations: accumulatedCalculations,
+            toolOutputs: accumulatedToolOutputs,
+            planReasoning: lastReasoning,
           });
         } catch (error: unknown) {
           console.error("Agent execution stream error:", error);

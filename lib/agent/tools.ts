@@ -5,8 +5,52 @@ export interface ToolResult {
   tool: string;
   input: string;
   result: string;
+  reason?: string;
   details?: any;
 }
+
+export const AVAILABLE_TOOLS_CATALOG = [
+  {
+    name: "arxiv",
+    description: "Search academic research papers in computer science, physics, math, AI/ML, and quantum algorithms.",
+    inputFormat: "Search query string (e.g. 'quantum transformer architectures' or 'deep reinforcement learning')",
+  },
+  {
+    name: "github",
+    description: "Analyze GitHub repository statistics, star counts, forks, primary language, and repository info.",
+    inputFormat: "Repository 'owner/repo' or repo URL (e.g. 'facebook/react' or 'langchain-ai/langgraphjs')",
+  },
+  {
+    name: "reddit",
+    description: "Search public Reddit community discussions, opinions, sentiment, upvotes, and comments.",
+    inputFormat: "Search query string (e.g. 'LangGraph vs AutoGen developer feedback')",
+  },
+  {
+    name: "population",
+    description: "Fetch demographic, census, country population statistics, and annual population growth rates.",
+    inputFormat: "Country name or query (e.g. 'India', 'USA', 'Germany', 'Indonesia', 'China')",
+  },
+  {
+    name: "finance",
+    description: "Query real-time cryptocurrency and market prices, 24h percentage changes, and financial metrics.",
+    inputFormat: "Crypto or ticker symbol (e.g. 'BTC', 'ETH', 'SOL', 'Bitcoin')",
+  },
+  {
+    name: "domain",
+    description: "Inspect domain DNS configuration, WHOIS registration status, and HTTPS security parameters.",
+    inputFormat: "Domain name or URL (e.g. 'anthropic.com', 'groq.com')",
+  },
+  {
+    name: "math",
+    description: "Accurate mathematical AST parser for calculations, compound interest, percentages, formulas.",
+    inputFormat: "Mathematical expression (e.g. '1500 * (1.08)^5' or '(1428 - 1425) / 1425 * 100')",
+  },
+  {
+    name: "web_search",
+    description: "Live web search for latest news, websites, and general knowledge via DuckDuckGo.",
+    inputFormat: "Search query keywords (e.g. 'Next.js 16 latest capabilities 2026')",
+  },
+];
 
 /**
  * 1. MATHEMATICAL CALCULATION TOOL
