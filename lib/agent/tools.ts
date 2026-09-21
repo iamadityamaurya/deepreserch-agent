@@ -101,7 +101,7 @@ export async function searchWikipedia(query: string): Promise<ToolResult> {
     // 1. Try direct summary endpoint
     const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanQuery.replace(/\s+/g, "_"))}`;
     const summaryRes = await fetch(summaryUrl, {
-      headers: { "User-Agent": "DeepResearchAgent/2.0 (contact: info@example.com)" },
+      headers: { "User-Agent": "DeepQuery/1.0 (contact: info@example.com)" },
       signal: AbortSignal.timeout(6000),
     });
 
@@ -129,7 +129,7 @@ export async function searchWikipedia(query: string): Promise<ToolResult> {
     // 2. Fallback to OpenSearch
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(cleanQuery)}&limit=3&namespace=0&format=json`;
     const searchRes = await fetch(searchUrl, {
-      headers: { "User-Agent": "DeepResearchAgent/2.0" },
+      headers: { "User-Agent": "DeepQuery/1.0" },
       signal: AbortSignal.timeout(6000),
     });
 
@@ -249,7 +249,7 @@ export async function analyzeGithubRepo(repoQuery: string): Promise<ToolResult> 
     if (!cleanPath.includes("/")) {
       const searchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(repoQuery)}&sort=stars&order=desc&per_page=1`;
       const searchRes = await fetch(searchUrl, {
-        headers: { "User-Agent": "DeepResearchAgent/2.0" },
+        headers: { "User-Agent": "DeepQuery/1.0" },
         signal: AbortSignal.timeout(7000),
       });
       if (searchRes.ok) {
@@ -266,7 +266,7 @@ export async function analyzeGithubRepo(repoQuery: string): Promise<ToolResult> 
 
     const apiUrl = `https://api.github.com/repos/${cleanPath}`;
     const res = await fetch(apiUrl, {
-      headers: { "User-Agent": "DeepResearchAgent/2.0" },
+      headers: { "User-Agent": "DeepQuery/1.0" },
       signal: AbortSignal.timeout(7000),
     });
 
@@ -367,7 +367,7 @@ export async function getDemographics(countryQuery: string): Promise<ToolResult>
     // 1. Fetch factual summary from Wikipedia
     const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(clean.replace(/\s+/g, "_"))}`;
     const res = await fetch(wikiUrl, {
-      headers: { "User-Agent": "DeepResearchAgent/2.0" },
+      headers: { "User-Agent": "DeepQuery/1.0" },
       signal: AbortSignal.timeout(5000),
     });
 

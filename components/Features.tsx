@@ -71,7 +71,7 @@ export default function Features() {
             Engineered for Uncompromising Empirical Rigor
           </h2>
           <p className="text-slate-400 text-base">
-            DeepResearch Agent combines state-graph autonomy, real-time API integrations, and mathematical calculation engines to deliver trusted answers.
+            DeepQuery combines state-graph autonomy, real-time API integrations, and mathematical calculation engines to deliver trusted answers.
           </p>
         </div>
 

@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-2">
           <BrainCircuit className="w-4 h-4 text-slate-400" />
-          <span className="font-semibold text-slate-300">DeepResearch Agent</span>
+          <span className="font-semibold text-slate-300">DeepQuery</span>
           <span>• Powered by LangGraph & Groq / Gemini</span>
         </div>
         <p>© {new Date().getFullYear()} Autonomous Multi-Source Agent.</p>

@@ -31,7 +31,7 @@ export default function Navbar({
             <BrainCircuit className="w-5 h-5" />
           </div>
           <span className="font-bold text-slate-100 text-base tracking-tight group-hover:text-indigo-300 transition-colors">
-            DeepResearch
+            DeepQuery
           </span>
         </div>
 
