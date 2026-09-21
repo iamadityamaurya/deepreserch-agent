@@ -4,16 +4,11 @@ import { useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  Sparkles,
-  Search,
   BrainCircuit,
   FileText,
-  CheckCircle2,
   Loader2,
   Copy,
   Download,
-  Layers,
-  Calculator,
   BookOpen,
   Code2,
   TrendingUp,
@@ -24,12 +19,17 @@ import {
   ChevronRight,
   ShieldCheck,
   Compass,
-  Cpu,
   Database,
   Share2,
   Check,
-  ArrowRight,
+  Calculator,
 } from "lucide-react";
+
+import Navbar from "@/components/Navbar";
+import Hero from "@/components/Hero";
+import ToolsGrid from "@/components/ToolsGrid";
+import Architecture from "@/components/Architecture";
+import Footer from "@/components/Footer";
 
 interface CalculationItem {
   expression: string;
@@ -79,22 +79,14 @@ export default function Home() {
 
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const samplePrompts = [
-    { label: "ArXiv Quantum Transformers", query: "ArXiv papers on quantum transformer architectures and attention" },
-    { label: "Canada vs Japan Demographics", query: "Compare population, capital, and languages of Canada vs Japan" },
-    { label: "Bitcoin & Ethereum Markets", query: "BTC and ETH price trends and cryptocurrency market sentiment" },
-    { label: "Analyze LangGraph.js Repo", query: "Analyze github.com/langchain-ai/langgraphjs repository statistics" },
-    { label: "Compound Growth Math", query: "Calculate compound growth for $10,000 at 8.5% annual return for 15 years" },
-    { label: "DNS Diagnostics (vercel.com)", query: "Inspect DNS and mail server records for vercel.com" },
-  ];
-
-  const handleStartResearch = async (searchTopic?: string) => {
-    const query = searchTopic || topic;
+  const handleStartResearch = async (overrideTopic?: string) => {
+    const query = overrideTopic || topic;
     if (!query.trim() || isLoading) return;
 
     setIsLoading(true);
     setTopic(query);
-    setStatusMessage("Initializing LangGraph Multi-Tool Agent Workflow...");
+
+    setStatusMessage("Initializing LangGraph Agent...");
     setCurrentNode("plan_research");
     setInitialAnswer("");
     setIsEnough(false);
@@ -162,7 +154,7 @@ export default function Home() {
                 if (data.sources) setSources(data.sources);
                 if (data.finalReport) setFinalReport(data.finalReport);
               } else if (data.type === "complete") {
-                setStatusMessage("Multi-Tool Deep Research Completed!");
+                setStatusMessage("Research completed");
                 if (data.finalReport) setFinalReport(data.finalReport);
                 if (data.initialAnswer) setInitialAnswer(data.initialAnswer);
                 if (data.isEnough !== undefined) setIsEnough(data.isEnough);
@@ -182,7 +174,7 @@ export default function Home() {
         }
       }
     } catch (err: unknown) {
-      const errMessage = err instanceof Error ? err.message : "Failed to execute research agent";
+      const errMessage = err instanceof Error ? err.message : "Failed to execute agent";
       setStatusMessage(`Error: ${errMessage}`);
     } finally {
       setIsLoading(false);
@@ -236,336 +228,184 @@ export default function Home() {
 
   const getNodeClass = (nodeName: string) => {
     if (currentNode === nodeName && isLoading) {
-      return "border-purple-500 bg-purple-950/50 text-purple-200 shadow-lg shadow-purple-500/20 animate-pulse";
+      return "border-indigo-500 bg-indigo-950/40 text-indigo-200 shadow-sm animate-pulse";
     }
     if (finalReport || (iterationCount > 0 && currentNode !== nodeName)) {
-      return "border-emerald-500/40 bg-emerald-950/20 text-emerald-300";
+      return "border-slate-800 bg-slate-900/80 text-slate-300";
     }
-    return "border-slate-800 bg-slate-900/50 text-slate-400";
+    return "border-slate-800/60 bg-slate-950 text-slate-500";
   };
 
   const getToolIcon = (toolName: string) => {
     switch (toolName.toLowerCase()) {
       case "wikipedia":
-        return <BookOpen className="w-4 h-4 text-sky-400" />;
+        return <BookOpen className="w-3.5 h-3.5 text-sky-400" />;
       case "arxiv":
-        return <FileText className="w-4 h-4 text-blue-400" />;
+        return <FileText className="w-3.5 h-3.5 text-blue-400" />;
       case "github":
-        return <Code2 className="w-4 h-4 text-purple-400" />;
+        return <Code2 className="w-3.5 h-3.5 text-purple-400" />;
       case "tech_discussions":
       case "reddit":
-        return <Share2 className="w-4 h-4 text-orange-400" />;
+        return <Share2 className="w-3.5 h-3.5 text-orange-400" />;
       case "demographics":
       case "population":
-        return <Globe className="w-4 h-4 text-emerald-400" />;
+        return <Globe className="w-3.5 h-3.5 text-emerald-400" />;
       case "finance":
-        return <TrendingUp className="w-4 h-4 text-amber-400" />;
+        return <TrendingUp className="w-3.5 h-3.5 text-amber-400" />;
       case "dns_domain":
       case "domain":
-        return <ShieldCheck className="w-4 h-4 text-cyan-400" />;
+        return <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />;
       case "math":
-        return <Calculator className="w-4 h-4 text-pink-400" />;
+        return <Calculator className="w-3.5 h-3.5 text-pink-400" />;
       default:
-        return <Wrench className="w-4 h-4 text-slate-400" />;
+        return <Wrench className="w-3.5 h-3.5 text-indigo-400" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500 selection:text-white">
-      {/* Radial Gradient Ambient Background */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] pointer-events-none" />
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
+      {/* Navbar */}
+      <Navbar
+        modelUsed={modelUsed}
+        searchDepth={searchDepth}
+        setSearchDepth={setSearchDepth}
+        preferredModel={preferredModel}
+        setPreferredModel={setPreferredModel}
+        isLoading={isLoading}
+      />
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-slate-950/80 border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-xl shadow-lg shadow-purple-500/30">
-              <BrainCircuit className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-purple-300 bg-clip-text text-transparent">
-                DeepResearch Multi-Tool Agent
-              </h1>
-              <p className="text-xs text-slate-400">Autonomous LangGraph Orchestrator & Multi-Source Tool Suite</p>
-            </div>
-          </div>
+      {/* Hero Search */}
+      <Hero
+        topic={topic}
+        setTopic={setTopic}
+        onSearchSubmit={(q) => handleStartResearch(q)}
+        isLoading={isLoading}
+      />
 
-          <div className="flex items-center space-x-3">
-            {modelUsed && (
-              <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-700 text-slate-300">
-                <Cpu className="w-3.5 h-3.5 mr-1 text-purple-400" />
-                {modelUsed}
-              </span>
-            )}
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-950/60 border border-purple-500/30 text-purple-300">
-              <Layers className="w-3.5 h-3.5 mr-1.5" />
-              LangGraph Engine v2.0
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative">
-        {/* Search Input Section */}
-        <section className="space-y-4 max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-purple-400">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Autonomous Multi-Cycle Agent</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-            Empirical Intelligence, Academic Papers, Code & Data
-          </h2>
-
-          <div className="relative max-w-3xl mx-auto space-y-3">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleStartResearch()}
-                placeholder="Ask any question, academic query, country, code repo, crypto, or formula..."
-                disabled={isLoading}
-                className="w-full pl-5 pr-40 py-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-100 placeholder-slate-500 shadow-xl transition-all outline-none text-base"
-              />
-              <button
-                onClick={() => handleStartResearch()}
-                disabled={isLoading || !topic.trim()}
-                className="absolute right-2 top-2 bottom-2 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white font-medium text-sm flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Investigating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    <span>Research</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Config Controls (Model & Search Depth) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs text-slate-400">
-              <div className="flex items-center space-x-2">
-                <span className="text-slate-500 font-medium">Search Depth:</span>
-                <button
-                  type="button"
-                  onClick={() => setSearchDepth("standard")}
-                  className={`px-2.5 py-1 rounded-md transition-all ${
-                    searchDepth === "standard"
-                      ? "bg-purple-950 text-purple-300 border border-purple-500/40"
-                      : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
-                  }`}
-                >
-                  ⚡ Standard (2 Cycles)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSearchDepth("deep")}
-                  className={`px-2.5 py-1 rounded-md transition-all ${
-                    searchDepth === "deep"
-                      ? "bg-purple-950 text-purple-300 border border-purple-500/40"
-                      : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
-                  }`}
-                >
-                  🔬 Deep Dive (4 Cycles)
-                </button>
+      {/* Active Research Workbench / Output Area */}
+      {(isLoading || finalReport || toolOutputs.length > 0) && (
+        <section className="py-8 max-w-4xl mx-auto px-4 space-y-6">
+          {/* Status Pipeline Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("plan_research")}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-purple-300">1. Plan</span>
+                {currentNode === "plan_research" && isLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                ) : iterationCount > 0 ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : null}
               </div>
+              <p className="text-[11px] text-slate-400 truncate">Deconstructing topic</p>
+            </div>
 
-              <div className="flex items-center space-x-2">
-                <span className="text-slate-500 font-medium">Model:</span>
-                <select
-                  value={preferredModel}
-                  onChange={(e) => setPreferredModel(e.target.value)}
-                  disabled={isLoading}
-                  className="bg-slate-900 border border-slate-800 rounded-md px-2 py-1 text-slate-300 outline-none focus:border-purple-500 text-xs"
-                >
-                  <option value="openai/gpt-oss-120b">Groq GPT-OSS 120B (High Precision)</option>
-                  <option value="openai/gpt-oss-20b">Groq GPT-OSS 20B (Fast)</option>
-                  <option value="qwen/qwen3.8-27b">Groq Qwen 27B (Ultra Fast)</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                </select>
+            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("execute_tools")}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-sky-300">2. Tools ({toolOutputs.length})</span>
+                {currentNode === "execute_tools" && isLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
+                ) : toolOutputs.length > 0 ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : null}
               </div>
+              <p className="text-[11px] text-slate-400 truncate">Executing APIs</p>
+            </div>
+
+            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("synthesize_notes")}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-amber-300">3. Synthesize</span>
+                {currentNode === "synthesize_notes" && isLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                ) : notes.length > 0 || finalReport ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : null}
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">Cross-referencing</p>
+            </div>
+
+            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("generate_report")}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-emerald-300">4. Report</span>
+                {currentNode === "generate_report" && isLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                ) : finalReport ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : null}
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">Formatting Markdown</p>
             </div>
           </div>
 
-          {/* Sample Prompts */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            <span className="text-xs text-slate-500">Quick explore:</span>
-            {samplePrompts.map((p, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setTopic(p.query);
-                  handleStartResearch(p.query);
-                }}
-                disabled={isLoading}
-                className="text-xs px-3 py-1.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 text-slate-300 hover:text-purple-300 transition-all cursor-pointer"
-              >
-                {p.label}
-              </button>
-            ))}
+          {/* Status Message Line */}
+          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+            <div className="flex items-center space-x-2">
+              <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-indigo-500 animate-ping" : "bg-emerald-400"}`} />
+              <span className="font-mono text-slate-300">{statusMessage}</span>
+            </div>
+            <div className="flex items-center space-x-3 text-slate-400 font-mono">
+              <span>Tools: <strong className="text-sky-400">{toolOutputs.length}</strong></span>
+              <span>Sources: <strong className="text-indigo-400">{sources.length}</strong></span>
+            </div>
           </div>
-        </section>
 
-        {/* Real-time Graph Pipeline Status */}
-        {(isLoading || finalReport || iterationCount > 0) && (
-          <section className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className={`p-4 rounded-xl border transition-all ${getNodeClass("plan_research")}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-2">
-                    <Compass className="w-4 h-4" />
-                    <span className="font-semibold text-xs uppercase tracking-wider">1. Plan Strategy</span>
+          {/* AST Math Calculations Strip */}
+          {calculations.length > 0 && (
+            <div className="p-3 rounded-lg bg-pink-950/20 border border-pink-500/30 space-y-1.5 text-xs">
+              <span className="text-pink-300 font-medium">AST Math Calculations:</span>
+              <div className="flex flex-wrap gap-2">
+                {calculations.map((c, i) => (
+                  <div key={i} className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 font-mono">
+                    <span className="text-slate-400">{c.expression}</span> ={" "}
+                    <span className="text-pink-300 font-semibold">{c.result}</span>
                   </div>
-                  {currentNode === "plan_research" && isLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : iterationCount > 0 ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : null}
-                </div>
-                <p className="text-xs text-slate-400">Hypothesis formulation & tool queries</p>
-              </div>
-
-              <div className={`p-4 rounded-xl border transition-all ${getNodeClass("execute_tools")}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-2">
-                    <Wrench className="w-4 h-4" />
-                    <span className="font-semibold text-xs uppercase tracking-wider">2. Execute Tools</span>
-                  </div>
-                  {currentNode === "execute_tools" && isLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : toolOutputs.length > 0 ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : finalReport ? (
-                    <span className="text-[10px] text-slate-500 font-mono">Skipped</span>
-                  ) : null}
-                </div>
-                <p className="text-xs text-slate-400">
-                  {toolOutputs.length > 0 ? `${toolOutputs.length} tool source(s) executed` : "Direct AI knowledge (0 tools)"}
-                </p>
-              </div>
-
-              <div className={`p-4 rounded-xl border transition-all ${getNodeClass("synthesize_notes")}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-2">
-                    <BrainCircuit className="w-4 h-4" />
-                    <span className="font-semibold text-xs uppercase tracking-wider">3. Synthesize</span>
-                  </div>
-                  {currentNode === "synthesize_notes" && isLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : notes.length > 0 || finalReport ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : null}
-                </div>
-                <p className="text-xs text-slate-400">
-                  {toolOutputs.length > 0
-                    ? `Cycle ${iterationCount}/${maxIterations} completed`
-                    : "Direct knowledge synthesis"}
-                </p>
-              </div>
-
-              <div className={`p-4 rounded-xl border transition-all ${getNodeClass("generate_report")}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4" />
-                    <span className="font-semibold text-xs uppercase tracking-wider">4. Response / Report</span>
-                  </div>
-                  {currentNode === "generate_report" && isLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : finalReport ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : null}
-                </div>
-                <p className="text-xs text-slate-400">Clean Markdown formatting</p>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* Status bar */}
-            <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${isLoading ? "bg-purple-500 animate-ping" : "bg-emerald-500"}`} />
-                <span className="text-slate-300 font-mono">{statusMessage}</span>
-              </div>
-              <div className="flex items-center space-x-4 text-slate-400">
-                <span>Tools: <strong className="text-slate-200">{toolOutputs.length}</strong></span>
-                <span>Calculations: <strong className="text-slate-200">{calculations.length}</strong></span>
-                <span>Sources: <strong className="text-slate-200">{sources.length}</strong></span>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Calculations Strip */}
-        {calculations.length > 0 && (
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-            <div className="flex items-center space-x-2 text-xs font-semibold text-pink-400">
-              <Calculator className="w-4 h-4" />
-              <span>Verified MathAST Evaluations:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {calculations.map((c, i) => (
-                <div key={i} className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono">
-                  <span className="text-slate-400">{c.expression}</span> ={" "}
-                  <span className="text-pink-300 font-bold">{c.result}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Research Results Tabs & Panels */}
-        {(finalReport || toolOutputs.length > 0 || sources.length > 0) && (
-          <section className="space-y-4">
-            {/* Tab Navigation */}
+          {/* Results Tab Navigation & Reader Panel */}
+          <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5 text-xs">
                 <button
                   onClick={() => setActiveTab("report")}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center space-x-2 ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
                     activeTab === "report"
-                      ? "bg-purple-600/20 border border-purple-500/40 text-purple-300"
+                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  <FileText className="w-4 h-4" />
-                  <span>Research Report</span>
+                  Report
                 </button>
                 <button
                   onClick={() => setActiveTab("tools")}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center space-x-2 ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
                     activeTab === "tools"
-                      ? "bg-purple-600/20 border border-purple-500/40 text-purple-300"
+                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  <Wrench className="w-4 h-4" />
-                  <span>Tool Findings ({toolOutputs.length})</span>
+                  Tool Findings ({toolOutputs.length})
                 </button>
                 <button
                   onClick={() => setActiveTab("sources")}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center space-x-2 ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
                     activeTab === "sources"
-                      ? "bg-purple-600/20 border border-purple-500/40 text-purple-300"
+                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  <Globe className="w-4 h-4" />
-                  <span>Verified Sources ({sources.length})</span>
+                  Sources ({sources.length})
                 </button>
                 <button
                   onClick={() => setActiveTab("synthesis")}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center space-x-2 ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
                     activeTab === "synthesis"
-                      ? "bg-purple-600/20 border border-purple-500/40 text-purple-300"
+                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  <BrainCircuit className="w-4 h-4" />
-                  <span>Agent Strategy & Notes</span>
+                  Agent Strategy
                 </button>
               </div>
 
@@ -574,45 +414,44 @@ export default function Home() {
                 <button
                   onClick={copyToClipboard}
                   disabled={!finalReport}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
                 >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? "Copied!" : "Copy MD"}</span>
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-indigo-400" />}
+                  <span>{copied ? "Copied" : "Copy"}</span>
                 </button>
                 <button
                   onClick={downloadMarkdown}
                   disabled={!finalReport}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .md</span>
+                  <Download className="w-3.5 h-3.5 text-sky-400" />
+                  <span>.md</span>
                 </button>
                 <button
                   onClick={downloadJSON}
                   disabled={!finalReport && toolOutputs.length === 0}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
                 >
-                  <Database className="w-3.5 h-3.5" />
-                  <span>Export JSON</span>
+                  <Database className="w-3.5 h-3.5 text-amber-400" />
+                  <span>JSON</span>
                 </button>
               </div>
             </div>
 
-            {/* TAB 1: REPORT */}
+            {/* TAB 1: REPORT READER VIEW */}
             {activeTab === "report" && (
               <div
                 ref={reportRef}
-                className="p-6 sm:p-8 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-2xl backdrop-blur-sm"
+                className="p-6 sm:p-8 rounded-xl bg-slate-900/80 border border-slate-800/80 shadow-lg"
               >
                 {finalReport ? (
-                  <article className="prose prose-invert prose-purple max-w-none prose-headings:font-bold prose-h1:text-2xl sm:prose-h1:text-3xl prose-h2:text-xl prose-h2:border-b prose-h2:border-slate-800 prose-h2:pb-2 prose-h2:mt-6 prose-a:text-purple-400 hover:prose-a:text-purple-300 prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-800">
+                  <article className="prose prose-invert max-w-none prose-indigo prose-headings:font-bold prose-h1:text-2xl prose-h2:text-lg prose-h2:border-b prose-h2:border-slate-800 prose-h2:pb-1.5 prose-a:text-indigo-400 hover:prose-a:text-indigo-300 prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-800 text-sm leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalReport}</ReactMarkdown>
                   </article>
                 ) : (
-                  <div className="py-16 text-center space-y-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto" />
-                    <p className="text-slate-300 font-medium">Agent is researching and compiling the definitive report...</p>
-                    <p className="text-xs text-slate-500">Executing empirical tools and synthesizing cross-source evidence.</p>
+                  <div className="py-12 text-center space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-400 mx-auto" />
+                    <p className="text-slate-300 text-sm font-medium">Synthesizing research report...</p>
                   </div>
                 )}
               </div>
@@ -620,38 +459,34 @@ export default function Home() {
 
             {/* TAB 2: TOOL FINDINGS */}
             {activeTab === "tools" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {toolOutputs.map((item, idx) => (
                   <div
                     key={idx}
                     onClick={() => setActiveModalTool(item)}
-                    className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-purple-500/50 transition-all cursor-pointer space-y-3 group"
+                    className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 transition-all cursor-pointer space-y-2 group"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         {getToolIcon(item.tool)}
-                        <span className="font-semibold text-xs uppercase tracking-wider text-slate-200">
+                        <span className="font-semibold text-xs text-slate-200 uppercase tracking-wider">
                           {item.tool}
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-purple-400 transition-colors" />
+                      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-400 font-mono line-clamp-1">Query: "{item.input}"</p>
-                      {item.reason && <p className="text-xs text-slate-500 line-clamp-1">Purpose: {item.reason}</p>}
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/80 text-xs font-mono text-slate-300 max-h-32 overflow-hidden relative">
+                    <p className="text-xs text-slate-400 font-mono truncate">"{item.input}"</p>
+                    <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 max-h-24 overflow-hidden relative">
                       <pre className="whitespace-pre-wrap">{item.result}</pre>
-                      <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none" />
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* TAB 3: SOURCES & CITATIONS */}
+            {/* TAB 3: SOURCES */}
             {activeTab === "sources" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {sources.length > 0 ? (
                   sources.map((s, idx) => (
                     <a
@@ -659,61 +494,57 @@ export default function Home() {
                       href={s.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-purple-500/50 transition-all space-y-2 group block"
+                      className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 transition-all space-y-1.5 group block text-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-purple-300 font-mono">
+                        <span className="px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-[10px]">
                           {s.tool}
                         </span>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400 transition-colors" />
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors" />
                       </div>
-                      <h4 className="font-semibold text-sm text-slate-200 group-hover:text-purple-300 transition-colors line-clamp-1">
+                      <h4 className="font-semibold text-slate-200 group-hover:text-indigo-200 transition-colors truncate">
                         {s.title}
                       </h4>
-                      {s.snippet && <p className="text-xs text-slate-400 line-clamp-2">{s.snippet}</p>}
-                      <p className="text-[10px] text-slate-500 font-mono truncate">{s.url}</p>
+                      {s.snippet && <p className="text-slate-400 line-clamp-2">{s.snippet}</p>}
                     </a>
                   ))
                 ) : (
-                  <div className="col-span-2 py-12 text-center text-slate-500 text-sm">
+                  <div className="col-span-2 py-8 text-center text-slate-500 text-xs">
                     No citation links gathered yet.
                   </div>
                 )}
               </div>
             )}
 
-            {/* TAB 4: AGENT STRATEGY & NOTES */}
+            {/* TAB 4: STRATEGY & NOTES */}
             {activeTab === "synthesis" && (
-              <div className="space-y-4">
+              <div className="space-y-3 text-xs">
                 {initialAnswer && (
-                  <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center space-x-2">
-                      <BrainCircuit className="w-4 h-4" />
-                      <span>Initial Baseline Knowledge & Hypothesis</span>
+                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+                    <h3 className="font-semibold text-purple-300 uppercase tracking-wider text-[11px]">
+                      Initial Baseline & Knowledge
                     </h3>
-                    <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{initialAnswer}</p>
+                    <p className="text-slate-400 leading-relaxed whitespace-pre-wrap">{initialAnswer}</p>
                   </div>
                 )}
 
                 {planReasoning && (
-                  <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center space-x-2">
-                      <Compass className="w-4 h-4" />
-                      <span>Strategic Tool Selection Rationale</span>
+                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+                    <h3 className="font-semibold text-indigo-300 uppercase tracking-wider text-[11px]">
+                      Tool Selection Strategy
                     </h3>
-                    <p className="text-sm text-slate-300 leading-relaxed">{planReasoning}</p>
+                    <p className="text-slate-400 leading-relaxed">{planReasoning}</p>
                   </div>
                 )}
 
                 {notes.length > 0 && (
-                  <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center space-x-2">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Iterative Synthesis Notes ({notes.length})</span>
+                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                    <h3 className="font-semibold text-emerald-300 uppercase tracking-wider text-[11px]">
+                      Synthesis Notes ({notes.length})
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {notes.map((note, idx) => (
-                        <div key={idx} className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-xs text-slate-300">
+                        <div key={idx} className="p-2.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
                           {note}
                         </div>
                       ))}
@@ -722,52 +553,58 @@ export default function Home() {
                 )}
               </div>
             )}
-          </section>
-        )}
+          </div>
+        </section>
+      )}
 
-        {/* Tool Output Modal */}
-        {activeModalTool && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="max-w-3xl w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4 shadow-2xl relative max-h-[85vh] flex flex-col">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center space-x-2.5">
-                  {getToolIcon(activeModalTool.tool)}
-                  <h3 className="font-bold text-base text-slate-100 uppercase tracking-wider">
-                    {activeModalTool.tool} Execution Inspector
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setActiveModalTool(null)}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+      {/* Tool Output Inspector Modal */}
+      {activeModalTool && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 shadow-2xl relative max-h-[80vh] flex flex-col text-xs">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center space-x-2">
+                {getToolIcon(activeModalTool.tool)}
+                <h3 className="font-semibold text-slate-200 uppercase tracking-wider">
+                  {activeModalTool.tool} Execution Inspector
+                </h3>
               </div>
+              <button
+                onClick={() => setActiveModalTool(null)}
+                className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500 font-medium">Input Query:</span>
-                  <div className="mt-1 px-3 py-1.5 bg-slate-950 rounded-md font-mono text-purple-300 border border-slate-800">
-                    {activeModalTool.input}
-                  </div>
-                </div>
-                {activeModalTool.reason && (
-                  <div>
-                    <span className="text-slate-500 font-medium">Purpose:</span>
-                    <p className="text-slate-300 mt-0.5">{activeModalTool.reason}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 overflow-auto rounded-xl bg-slate-950 p-4 border border-slate-800">
-                <pre className="text-xs font-mono text-slate-200 whitespace-pre-wrap leading-relaxed">
-                  {activeModalTool.result}
-                </pre>
+            <div>
+              <span className="text-slate-500 font-medium">Input Query:</span>
+              <div className="mt-1 p-2 bg-slate-950 rounded font-mono text-indigo-300 border border-slate-800">
+                {activeModalTool.input}
               </div>
             </div>
+
+            <div className="flex-1 overflow-auto rounded bg-slate-950 p-3 border border-slate-800">
+              <pre className="font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">
+                {activeModalTool.result}
+              </pre>
+            </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
+
+      {/* Subtle Integrated Tools Catalog */}
+      <ToolsGrid
+        onSelectToolSample={(sampleQuery) => {
+          setTopic(sampleQuery);
+          handleStartResearch(sampleQuery);
+        }}
+      />
+
+      {/* Subtle Graph Architecture Summary */}
+      <Architecture />
+
+      {/* Minimal Footer */}
+      <Footer />
     </div>
   );
 }
