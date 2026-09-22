@@ -15,6 +15,10 @@ import {
   getFinancialData,
   analyzeDomain,
   performWebSearch,
+  getWorldBankData,
+  getWeatherInfo,
+  inspectIpWhois,
+  searchRedditCommunity,
 } from "./tools";
 
 interface LLMInstanceInfo {
@@ -371,6 +375,25 @@ export async function executeToolsNode(state: ResearchState): Promise<Partial<Re
         case "dns_domain":
         case "domain": {
           res = await analyzeDomain(query);
+          break;
+        }
+        case "world_bank":
+        case "macroeconomics": {
+          res = await getWorldBankData(query);
+          break;
+        }
+        case "weather":
+        case "climate": {
+          res = await getWeatherInfo(query);
+          break;
+        }
+        case "ip_whois":
+        case "whois": {
+          res = await inspectIpWhois(query);
+          break;
+        }
+        case "reddit_community": {
+          res = await searchRedditCommunity(query);
           break;
         }
         case "web_search":

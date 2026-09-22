@@ -10,6 +10,10 @@ import {
   ShieldCheck,
   TrendingUp,
   Search,
+  Landmark,
+  CloudSun,
+  Network,
+  MessageSquare,
 } from "lucide-react";
 
 interface ToolsGridProps {
@@ -38,6 +42,34 @@ export default function ToolsGrid({ onSelectToolSample }: ToolsGridProps) {
       description: "Repository statistics, open issues, star metrics, and READMEs.",
       sample: "Analyze github.com/facebook/react repository statistics",
       border: "hover:border-purple-500/40 bg-purple-950/10",
+    },
+    {
+      name: "World Bank Data",
+      icon: <Landmark className="w-4 h-4 text-emerald-400" />,
+      description: "Macroeconomic indicators (GDP, inflation, unemployment) via World Bank.",
+      sample: "World Bank economic metrics for United States vs India",
+      border: "hover:border-emerald-500/40 bg-emerald-950/10",
+    },
+    {
+      name: "Global Weather",
+      icon: <CloudSun className="w-4 h-4 text-yellow-400" />,
+      description: "Live temperatures, humidity, wind speed, and 7-day forecast via Open-Meteo.",
+      sample: "Weather forecast for Tokyo and London",
+      border: "hover:border-yellow-500/40 bg-yellow-950/10",
+    },
+    {
+      name: "IP & WHOIS Inspector",
+      icon: <Network className="w-4 h-4 text-teal-400" />,
+      description: "IP geolocation, ISP registration, ASN routing, and domain inspection.",
+      sample: "Inspect IP geolocation and ISP details for 8.8.8.8",
+      border: "hover:border-teal-500/40 bg-teal-950/10",
+    },
+    {
+      name: "Reddit Community",
+      icon: <MessageSquare className="w-4 h-4 text-red-400" />,
+      description: "Reddit discussion threads, sentiment analysis, and top subreddit topics.",
+      sample: "Search r/MachineLearning for latest Claude 3.7 benchmarks",
+      border: "hover:border-red-500/40 bg-red-950/10",
     },
     {
       name: "Hacker News",

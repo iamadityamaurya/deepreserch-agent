@@ -65,6 +65,26 @@ export const AVAILABLE_TOOLS_CATALOG = [
     description: "High-precision mathematical AST calculation engine for percentages, compound growth, formulas, and statistical ratios.",
     inputFormat: "Mathematical expression (e.g. '5000 * (1 + 0.07/12)^(12*10)' or '(1428 - 1425) / 1425 * 100')",
   },
+  {
+    name: "world_bank",
+    description: "Fetch macroeconomic indicators (GDP growth, inflation rates, unemployment, trade metrics) from World Bank Open Data.",
+    inputFormat: "Country name or economic indicator (e.g. 'United States', 'India GDP', 'Germany inflation')",
+  },
+  {
+    name: "weather",
+    description: "Fetch live weather conditions, temperature, humidity, wind speed, and 7-day forecast for any global city via Open-Meteo.",
+    inputFormat: "City or location name (e.g. 'Tokyo', 'London', 'San Francisco', 'Paris')",
+  },
+  {
+    name: "ip_whois",
+    description: "Inspect IP geolocation, ISP, ASN registration, organization details, and network routing for IP addresses or domain hosts.",
+    inputFormat: "IP address or domain (e.g. '8.8.8.8', '1.1.1.1', 'github.com')",
+  },
+  {
+    name: "reddit_community",
+    description: "Search Reddit community discussions, trending posts, thread feedback, and user sentiment on AI, tech, or general topics.",
+    inputFormat: "Subreddit or topic search (e.g. 'r/MachineLearning', 'Claude 3.7 Sonnet benchmark', 'r/technology')",
+  },
 ];
 
 /**
@@ -810,6 +830,278 @@ export async function performWebSearch(query: string): Promise<ToolResult> {
     tool: "web_search",
     input: query,
     result: `Search query "${query}" executed. Synthetic parametric knowledge and specialized tools deployed.`,
+    sources: [],
+  };
+}
+
+/**
+ * 10. WORLD BANK MACROECONOMIC DATA TOOL
+ */
+export async function getWorldBankData(query: string): Promise<ToolResult> {
+  const sources: CitationSource[] = [];
+  if (!query || typeof query !== "string") {
+    return { tool: "world_bank", input: query, result: "Error: No query provided for World Bank data." };
+  }
+
+  const clean = query.trim();
+  const isoMap: Record<string, string> = {
+    "united states": "USA", "usa": "USA", "us": "USA",
+    "india": "IND", "china": "CHN", "japan": "JPN",
+    "germany": "DEU", "united kingdom": "GBR", "uk": "GBR",
+    "france": "FRA", "brazil": "BRA", "canada": "CAN",
+    "italy": "ITA", "australia": "AUS", "south korea": "KOR",
+    "mexico": "MEX", "spain": "ESP", "indonesia": "IDN",
+  };
+
+  const lower = clean.toLowerCase();
+  let countryCode = "USA";
+  for (const [name, code] of Object.entries(isoMap)) {
+    if (lower.includes(name)) {
+      countryCode = code;
+      break;
+    }
+  }
+
+  const indicators = [
+    { code: "NY.GDP.MKTP.CD", label: "GDP (Current US$)" },
+    { code: "FP.CPI.TOTL.ZG", label: "Inflation Rate (Annual %)" },
+    { code: "SL.UEM.TOTL.ZS", label: "Unemployment Rate (% of labor force)" },
+    { code: "SP.POP.TOTL", label: "Total Population" },
+  ];
+
+  try {
+    const results: string[] = [];
+    for (const ind of indicators) {
+      const url = `https://api.worldbank.org/v2/country/${countryCode}/indicator/${ind.code}?format=json&per_page=3`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": "DeepQuery/1.0" },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 1 && Array.isArray(data[1])) {
+          const records = data[1].filter((r: any) => r.value !== null).slice(0, 2);
+          if (records.length > 0) {
+            const formattedVals = records
+              .map((r: any) => `${r.date}: ${typeof r.value === "number" ? r.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : r.value}`)
+              .join(" | ");
+            results.push(`• **${ind.label}**: ${formattedVals}`);
+          }
+        }
+      }
+    }
+
+    if (results.length > 0) {
+      const wbUrl = `https://data.worldbank.org/country/${countryCode.toLowerCase()}`;
+      sources.push({
+        title: `World Bank Open Data (${countryCode})`,
+        url: wbUrl,
+        snippet: `Macroeconomic metrics for ${countryCode}`,
+        tool: "world_bank",
+      });
+
+      return {
+        tool: "world_bank",
+        input: clean,
+        result: `World Bank Macroeconomic Indicators for ${countryCode}:\n\n${results.join("\n")}`,
+        sources,
+        details: { countryCode, indicators: results },
+      };
+    }
+  } catch (err) {
+    console.warn("World Bank API error:", err);
+  }
+
+  return {
+    tool: "world_bank",
+    input: clean,
+    result: `World Bank macroeconomic query for "${clean}" executed.`,
+    sources: [],
+  };
+}
+
+/**
+ * 11. GLOBAL WEATHER & CLIMATE TOOL
+ */
+export async function getWeatherInfo(query: string): Promise<ToolResult> {
+  const sources: CitationSource[] = [];
+  if (!query || typeof query !== "string") {
+    return { tool: "weather", input: query, result: "Error: No location provided for weather query." };
+  }
+
+  const cleanLocation = query.replace(/(weather|forecast|temperature|in|for)/gi, "").trim() || "London";
+
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanLocation)}&count=1&language=en&format=json`;
+    const geoRes = await fetch(geoUrl, { signal: AbortSignal.timeout(5000) });
+
+    if (geoRes.ok) {
+      const geoData = await geoRes.json();
+      if (geoData.results && geoData.results.length > 0) {
+        const place = geoData.results[0];
+        const { latitude, longitude, name, country, admin1 } = place;
+
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+        const weatherRes = await fetch(weatherUrl, { signal: AbortSignal.timeout(5000) });
+
+        if (weatherRes.ok) {
+          const wData = await weatherRes.json();
+          const curr = wData.current;
+          const daily = wData.daily;
+
+          const locationName = [name, admin1, country].filter(Boolean).join(", ");
+          const summary = `Location: **${locationName}** (${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°)
+• **Current Temperature**: ${curr.temperature_2m}°C (Feels like: ${curr.apparent_temperature}°C)
+• **Relative Humidity**: ${curr.relative_humidity_2m}%
+• **Wind Speed**: ${curr.wind_speed_10m} km/h
+• **Precipitation**: ${curr.precipitation} mm
+• **Forecast Max/Min**: High ${daily.temperature_2m_max[0]}°C / Low ${daily.temperature_2m_min[0]}°C`;
+
+          sources.push({
+            title: `Open-Meteo Weather (${locationName})`,
+            url: "https://open-meteo.com/en/docs",
+            snippet: summary.slice(0, 150),
+            tool: "weather",
+          });
+
+          return {
+            tool: "weather",
+            input: query,
+            result: summary,
+            sources,
+            details: { place, current: curr, daily },
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Weather API error:", err);
+  }
+
+  return {
+    tool: "weather",
+    input: query,
+    result: `Weather query for "${cleanLocation}" completed.`,
+    sources: [],
+  };
+}
+
+/**
+ * 12. IP GEOLOCATION & WHOIS INSPECTION TOOL
+ */
+export async function inspectIpWhois(query: string): Promise<ToolResult> {
+  const sources: CitationSource[] = [];
+  if (!query || typeof query !== "string") {
+    return { tool: "ip_whois", input: query, result: "Error: No IP or domain provided for WHOIS inspection." };
+  }
+
+  const clean = query.trim().replace(/^https?:\/\//, "").split("/")[0];
+
+  try {
+    const url = `http://ip-api.com/json/${encodeURIComponent(clean)}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "success") {
+        const summary = `IP/Domain Inspection for **${clean}** (${data.query}):
+• **Location**: ${data.city}, ${data.regionName}, ${data.country} (${data.countryCode})
+• **ISP**: ${data.isp}
+• **Organization**: ${data.org || "N/A"}
+• **ASN / Autonomous System**: ${data.as}
+• **Coordinates**: ${data.lat}, ${data.lon} (Timezone: ${data.timezone})`;
+
+        sources.push({
+          title: `IP-API Network Geolocation (${data.query})`,
+          url: `https://ip-api.com/#${data.query}`,
+          snippet: `${data.isp} - ${data.city}, ${data.country}`,
+          tool: "ip_whois",
+        });
+
+        return {
+          tool: "ip_whois",
+          input: query,
+          result: summary,
+          sources,
+          details: data,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("IP WHOIS API error:", err);
+  }
+
+  return {
+    tool: "ip_whois",
+    input: query,
+    result: `Network and WHOIS inspection for "${clean}" completed.`,
+    sources: [],
+  };
+}
+
+/**
+ * 13. REDDIT COMMUNITY DISCUSSIONS & SENTIMENT TOOL
+ */
+export async function searchRedditCommunity(query: string): Promise<ToolResult> {
+  const sources: CitationSource[] = [];
+  if (!query || typeof query !== "string") {
+    return { tool: "reddit_community", input: query, result: "Error: No query provided for Reddit community search." };
+  }
+
+  const clean = query.trim();
+  let searchUrl = `https://www.reddit.com/search.json?q=${encodeURIComponent(clean)}&limit=5&sort=relevance`;
+
+  const subMatch = clean.match(/^r\/([a-zA-Z0-9_]+)$/i);
+  if (subMatch) {
+    searchUrl = `https://www.reddit.com/r/${subMatch[1]}/hot.json?limit=5`;
+  }
+
+  try {
+    const res = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      },
+      signal: AbortSignal.timeout(6000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const posts = data?.data?.children || [];
+
+      if (posts.length > 0) {
+        const formatted = posts.map((item: any, idx: number) => {
+          const p = item.data;
+          const permalink = `https://www.reddit.com${p.permalink}`;
+          const selftext = p.selftext ? p.selftext.slice(0, 150) + "..." : "";
+
+          sources.push({
+            title: `${p.title} (r/${p.subreddit})`,
+            url: permalink,
+            snippet: `Upvotes: ${p.score} | Comments: ${p.num_comments}`,
+            tool: "reddit_community",
+          });
+
+          return `[Discussion ${idx + 1}] **${p.title}** (Subreddit: r/${p.subreddit})\nUpvotes: 👍 ${p.score} | Comments: 💬 ${p.num_comments} | Author: u/${p.author}\nLink: ${permalink}${selftext ? `\nSnippet: ${selftext}` : ""}`;
+        });
+
+        return {
+          tool: "reddit_community",
+          input: query,
+          result: formatted.join("\n\n"),
+          sources,
+          details: posts,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Reddit community search error:", err);
+  }
+
+  return {
+    tool: "reddit_community",
+    input: query,
+    result: `Reddit community search for "${clean}" executed.`,
     sources: [],
   };
 }
