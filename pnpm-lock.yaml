@@ -20,9 +20,6 @@ importers:
       '@langchain/langgraph':
         specifier: ^1.4.12
         version: 1.4.12(@langchain/core@1.2.9)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
-      '@types/mathjs':
-        specifier: ^9.4.2
-        version: 9.4.2
       cheerio:
         specifier: ^1.2.0
         version: 1.2.0
@@ -666,10 +663,6 @@ packages:
 
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
-
-  '@types/mathjs@9.4.2':
-    resolution: {integrity: sha512-GF5g1vJmvKdWIWsE53XX7EDAyCaZ9p6gaYm1xhlXn5JjrY/NJrOfJN3fBxS3wyZpVh3QqKoMkS2WjFwxWMHOTw==}
-    deprecated: This is a stub types definition. mathjs provides its own type definitions, so you do not need this installed.
 
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
@@ -3123,10 +3116,6 @@ snapshots:
   '@types/json-schema@7.0.15': {}
 
   '@types/json5@0.0.29': {}
-
-  '@types/mathjs@9.4.2':
-    dependencies:
-      mathjs: 15.2.0
 
   '@types/mdast@4.0.4':
     dependencies:
