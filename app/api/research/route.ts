@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { researchAgentGraph } from "@/lib/agent/graph";
+import { checkRateLimit } from "@/lib/rate-limiter";
 import { z } from "zod";
 
 const RequestSchema = z.object({
@@ -15,6 +16,28 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    const forwarded = req.headers.get("x-forwarded-for");
+    const identifier = (typeof forwarded === "string" ? forwarded.split(",")[0]?.trim() : null) || "anonymous";
+    const { allowed, resetAt } = checkRateLimit(identifier);
+
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: "Too many research requests. Please try again in a minute.",
+          resetAt,
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": String(10),
+            "X-RateLimit-Remaining": String(0),
+            "X-RateLimit-Reset": String(resetAt),
+          },
+        }
+      );
+    }
+
     const body = await req.json();
     const parseResult = RequestSchema.safeParse(body);
 
@@ -85,7 +108,7 @@ export async function POST(req: NextRequest) {
                 node: nodeName,
               });
 
-              const out = nodeOutput as Record<string, any>;
+              const out = nodeOutput as Record<string, unknown>;
               if (typeof out.initialAnswer === "string" && out.initialAnswer) {
                 initialAnswer = out.initialAnswer;
               }

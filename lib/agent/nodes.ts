@@ -121,8 +121,9 @@ async function invokeWithFallback(
       if (text && text.trim().length > 0) {
         return { text, modelUsed: `${item.provider}:${item.modelName}` };
       }
-    } catch (err: any) {
-      console.warn(`LLM invocation failed on ${item.modelName} (${err?.message || err}). Trying next fallback...`);
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      console.warn(`LLM invocation failed on ${item.modelName} (${errMessage}). Trying next fallback...`);
       lastError = err;
     }
   }
@@ -136,7 +137,7 @@ async function invokeWithFallback(
 function extractAndParseJson<T>(raw: string, fallback: T): T {
   if (!raw || typeof raw !== "string") return fallback;
 
-  let cleaned = raw
+  const cleaned = raw
     .replace(/^```(?:json)?\s*/gim, "")
     .replace(/\s*```$/gm, "")
     .trim();

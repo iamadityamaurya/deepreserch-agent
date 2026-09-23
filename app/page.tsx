@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useToast } from "@/components/Toast";
 import {
   BrainCircuit,
   FileText,
@@ -23,6 +24,8 @@ import {
   Share2,
   Check,
   Calculator,
+  Printer,
+  RefreshCw,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -49,7 +52,7 @@ interface ToolResultItem {
   result: string;
   reason?: string;
   sources?: CitationSource[];
-  details?: any;
+  details?: unknown;
 }
 
 export default function Home() {
@@ -77,11 +80,16 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"report" | "tools" | "sources" | "synthesis">("report");
   const [copied, setCopied] = useState(false);
 
+  const { showToast } = useToast();
+  const abortControllerRef = useRef<AbortController | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   const handleStartResearch = async (overrideTopic?: string) => {
     const query = overrideTopic || topic;
     if (!query.trim() || isLoading) return;
+
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
     setTopic(query);
@@ -113,9 +121,18 @@ export default function Home() {
           searchDepth,
           preferredModel,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 429) {
+          throw new Error(errorData.message || "Too many requests. Please try again in a minute.");
+        }
+        throw new Error(errorData.error || "Failed to connect to agent stream");
+      }
+
+      if (!response.body) {
         throw new Error("Failed to connect to agent stream");
       }
 
@@ -174,18 +191,89 @@ export default function Home() {
         }
       }
     } catch (err: unknown) {
-      const errMessage = err instanceof Error ? err.message : "Failed to execute agent";
-      setStatusMessage(`Error: ${errMessage}`);
+      if (err instanceof Error && err.name === "AbortError") {
+        setStatusMessage("Research stopped by user.");
+      } else {
+        const errMessage = err instanceof Error ? err.message : "Failed to execute agent";
+        setStatusMessage(`Error: ${errMessage}`);
+        showToast(errMessage, "error");
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleStopResearch = () => {
+    abortControllerRef.current?.abort();
   };
 
   const copyToClipboard = () => {
     if (!finalReport) return;
     navigator.clipboard.writeText(finalReport);
     setCopied(true);
+    showToast("Report copied to clipboard", "success");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadHTML = () => {
+    if (!finalReport) return;
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeepQuery Research Report</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1f2937; }
+    h1, h2, h3 { color: #111827; }
+    a { color: #4f46e5; }
+    pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; }
+    blockquote { border-left: 4px solid #e5e7eb; margin: 0; padding-left: 16px; color: #4b5563; }
+  </style>
+</head>
+<body>
+  <h1>Research Report</h1>
+  <p><strong>Topic:</strong> ${topic}</p>
+  ${finalReport}
+  ${sources.length > 0 ? `<h2>Sources</h2><ul>${sources.map((s) => `<li><a href="${s.url}">${s.title}</a></li>`).join("")}</ul>` : ""}
+</body>
+</html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Research_${topic.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("HTML report downloaded", "success");
+  };
+
+  const printReport = () => {
+    if (!finalReport || !reportRef.current) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>DeepQuery Research Report</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1f2937; }
+            h1, h2, h3 { color: #111827; }
+            a { color: #4f46e5; }
+            pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; }
+          </style>
+        </head>
+        <body>${reportRef.current.innerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
 
   const downloadMarkdown = () => {
@@ -199,6 +287,7 @@ export default function Home() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast("Markdown report downloaded", "success");
   };
 
   const downloadJSON = () => {
@@ -224,6 +313,11 @@ export default function Home() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast("Research data downloaded as JSON", "success");
+  };
+
+  const handleRetry = () => {
+    handleStartResearch(topic);
   };
 
   const getNodeClass = (nodeName: string) => {
@@ -263,7 +357,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
       {/* Navbar */}
       <Navbar
         modelUsed={modelUsed}
@@ -339,12 +433,32 @@ export default function Home() {
           {/* Status Message Line */}
           <div className="flex items-center justify-between text-xs text-slate-400 px-1">
             <div className="flex items-center space-x-2">
-              <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-indigo-500 animate-ping" : "bg-emerald-400"}`} />
+              <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-indigo-500 animate-ping" : statusMessage.startsWith("Error") || statusMessage.startsWith("Research stopped") ? "bg-amber-400" : "bg-emerald-400"}`} />
               <span className="font-mono text-slate-300">{statusMessage}</span>
             </div>
-            <div className="flex items-center space-x-3 text-slate-400 font-mono">
-              <span>Tools: <strong className="text-sky-400">{toolOutputs.length}</strong></span>
-              <span>Sources: <strong className="text-indigo-400">{sources.length}</strong></span>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 text-slate-400 font-mono">
+                <span>Tools: <strong className="text-sky-400">{toolOutputs.length}</strong></span>
+                <span>Sources: <strong className="text-indigo-400">{sources.length}</strong></span>
+              </div>
+              {isLoading && (
+                <button
+                  onClick={handleStopResearch}
+                  className="px-2.5 py-1 rounded bg-red-950/40 border border-red-800 text-red-300 hover:bg-red-900/50 hover:text-red-200 transition-colors font-medium text-[11px] flex items-center space-x-1 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                  <span>Stop</span>
+                </button>
+              )}
+              {!isLoading && (statusMessage.startsWith("Error") || statusMessage.startsWith("Research stopped")) && (
+                <button
+                  onClick={handleRetry}
+                  className="px-2.5 py-1 rounded bg-indigo-950/40 border border-indigo-800 text-indigo-300 hover:bg-indigo-900/50 hover:text-indigo-200 transition-colors font-medium text-[11px] flex items-center space-x-1 cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Retry</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -435,6 +549,22 @@ export default function Home() {
                   <Database className="w-3.5 h-3.5 text-amber-400" />
                   <span>JSON</span>
                 </button>
+                <button
+                  onClick={downloadHTML}
+                  disabled={!finalReport}
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>HTML</span>
+                </button>
+                <button
+                  onClick={printReport}
+                  disabled={!finalReport}
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Print</span>
+                </button>
               </div>
             </div>
 
@@ -442,16 +572,16 @@ export default function Home() {
             {activeTab === "report" && (
               <div
                 ref={reportRef}
-                className="p-6 sm:p-8 rounded-xl bg-slate-900/80 border border-slate-800/80 shadow-lg"
+                className="p-6 sm:p-8 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 shadow-lg"
               >
                 {finalReport ? (
-                  <article className="prose prose-invert max-w-none prose-indigo prose-headings:font-bold prose-h1:text-2xl prose-h2:text-lg prose-h2:border-b prose-h2:border-slate-800 prose-h2:pb-1.5 prose-a:text-indigo-400 hover:prose-a:text-indigo-300 prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-800 text-sm leading-relaxed">
+                  <article className="prose dark:prose-invert max-w-none prose-indigo prose-headings:font-bold prose-h1:text-2xl prose-h2:text-lg prose-h2:border-b prose-h2:border-slate-200 dark:prose-h2:border-slate-800 prose-h2:pb-1.5 prose-a:text-indigo-600 dark:prose-a:text-indigo-400 hover:prose-a:text-indigo-500 dark:hover:prose-a:text-indigo-300 prose-pre:bg-slate-100 dark:prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800 text-sm leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalReport}</ReactMarkdown>
                   </article>
                 ) : (
                   <div className="py-12 text-center space-y-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-400 mx-auto" />
-                    <p className="text-slate-300 text-sm font-medium">Synthesizing research report...</p>
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500 dark:text-indigo-400 mx-auto" />
+                    <p className="text-slate-600 dark:text-slate-300 text-sm font-medium">Synthesizing research report...</p>
                   </div>
                 )}
               </div>
@@ -475,7 +605,7 @@ export default function Home() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
                     </div>
-                    <p className="text-xs text-slate-400 font-mono truncate">"{item.input}"</p>
+                    <p className="text-xs text-slate-400 font-mono truncate">&ldquo;{item.input}&rdquo;</p>
                     <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 max-h-24 overflow-hidden relative">
                       <pre className="whitespace-pre-wrap">{item.result}</pre>
                     </div>

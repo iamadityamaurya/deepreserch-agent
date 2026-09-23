@@ -16,7 +16,7 @@ export interface ToolResult {
   result: string;
   reason?: string;
   sources?: CitationSource[];
-  details?: any;
+  details?: unknown;
 }
 
 export const AVAILABLE_TOOLS_CATALOG = [
@@ -350,7 +350,15 @@ export async function searchTechDiscussions(query: string): Promise<ToolResult> 
       return { tool: "tech_discussions", input: query, result: `No community discussion threads found for "${query}".` };
     }
 
-    const formattedHits = hits.map((hit: any, i: number) => {
+    interface HackerNewsHit {
+      objectID: string;
+      title: string;
+      url?: string;
+      points?: number;
+      num_comments?: number;
+    }
+
+    const formattedHits = hits.map((hit: HackerNewsHit, i: number) => {
       const hnUrl = `https://news.ycombinator.com/item?id=${hit.objectID}`;
       const itemUrl = hit.url || hnUrl;
       sources.push({
@@ -465,7 +473,7 @@ export async function getFinancialData(symbolOrAsset: string): Promise<ToolResul
       bnb: "binancecoin",
     };
 
-    let matchedCrypto = Object.keys(cryptoMap).find((k) => lower.includes(k));
+    const matchedCrypto = Object.keys(cryptoMap).find((k) => lower.includes(k));
     if (matchedCrypto) {
       const cryptoId = cryptoMap[matchedCrypto];
       try {
@@ -734,7 +742,13 @@ export async function performWebSearch(query: string): Promise<ToolResult> {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.results) && data.results.length > 0) {
-          const formatted = data.results.map((r: any, i: number) => {
+          interface TavilyResult {
+          title: string;
+          url: string;
+          content?: string;
+        }
+
+        const formatted = data.results.map((r: TavilyResult, i: number) => {
             sources.push({
               title: r.title,
               url: r.url,
@@ -880,11 +894,16 @@ export async function getWorldBankData(query: string): Promise<ToolResult> {
 
       if (res.ok) {
         const data = await res.json();
+        interface WorldBankRecord {
+          date: string;
+          value: number | null;
+        }
+
         if (Array.isArray(data) && data.length > 1 && Array.isArray(data[1])) {
-          const records = data[1].filter((r: any) => r.value !== null).slice(0, 2);
+          const records = (data[1] as WorldBankRecord[]).filter((r) => r.value !== null).slice(0, 2);
           if (records.length > 0) {
             const formattedVals = records
-              .map((r: any) => `${r.date}: ${typeof r.value === "number" ? r.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : r.value}`)
+              .map((r) => `${r.date}: ${typeof r.value === "number" ? r.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : r.value}`)
               .join(" | ");
             results.push(`• **${ind.label}**: ${formattedVals}`);
           }
@@ -1070,7 +1089,19 @@ export async function searchRedditCommunity(query: string): Promise<ToolResult> 
       const posts = data?.data?.children || [];
 
       if (posts.length > 0) {
-        const formatted = posts.map((item: any, idx: number) => {
+        interface RedditPost {
+          data: {
+            title: string;
+            subreddit: string;
+            score: number;
+            num_comments: number;
+            author: string;
+            permalink: string;
+            selftext?: string;
+          };
+        }
+
+        const formatted = posts.map((item: RedditPost, idx: number) => {
           const p = item.data;
           const permalink = `https://www.reddit.com${p.permalink}`;
           const selftext = p.selftext ? p.selftext.slice(0, 150) + "..." : "";
