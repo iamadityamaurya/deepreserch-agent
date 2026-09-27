@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCircuit, Moon, Sun } from "lucide-react";
+import { BrainCircuit, Moon, Sun, History } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 interface NavbarProps {
@@ -10,15 +10,16 @@ interface NavbarProps {
   preferredModel: string;
   setPreferredModel: (model: string) => void;
   isLoading: boolean;
+  onOpenHistory: () => void;
 }
 
 export default function Navbar({
-  modelUsed,
   searchDepth,
   setSearchDepth,
   preferredModel,
   setPreferredModel,
   isLoading,
+  onOpenHistory,
 }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
 
@@ -40,6 +41,15 @@ export default function Navbar({
 
         {/* Right Configuration Controls */}
         <div className="flex items-center space-x-3 text-xs">
+          {/* History Toggle */}
+          <button
+            onClick={onOpenHistory}
+            aria-label="Open research history"
+            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+          >
+            <History className="w-4 h-4" />
+          </button>
+
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}

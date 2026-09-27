@@ -33,6 +33,8 @@ import Hero from "@/components/Hero";
 import ToolsGrid from "@/components/ToolsGrid";
 import Architecture from "@/components/Architecture";
 import Footer from "@/components/Footer";
+import ResearchHistory from "@/components/ResearchHistory";
+import { saveToHistory, HistoryItem } from "@/lib/history";
 
 interface CalculationItem {
   expression: string;
@@ -79,6 +81,7 @@ export default function Home() {
   const [activeModalTool, setActiveModalTool] = useState<ToolResultItem | null>(null);
   const [activeTab, setActiveTab] = useState<"report" | "tools" | "sources" | "synthesis">("report");
   const [copied, setCopied] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const { showToast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -181,6 +184,20 @@ export default function Home() {
                 if (data.sources) setSources(data.sources);
                 if (data.planReasoning) setPlanReasoning(data.planReasoning);
                 if (data.notes) setNotes(data.notes);
+
+                // Persist completed research to localStorage history
+                saveToHistory({
+                  topic: query,
+                  finalReport: data.finalReport || "",
+                  sources: data.sources || [],
+                  toolOutputs: data.toolOutputs || [],
+                  calculations: data.calculations || [],
+                  modelUsed: data.modelUsed || preferredModel,
+                  searchDepth,
+                  planReasoning: data.planReasoning || "",
+                  initialAnswer: data.initialAnswer || "",
+                  notes: data.notes || [],
+                });
               } else if (data.type === "error") {
                 setStatusMessage(`Error: ${data.message}`);
               }
@@ -356,6 +373,23 @@ export default function Home() {
     }
   };
 
+  const restoreHistoryItem = (item: HistoryItem) => {
+    setTopic(item.topic);
+    setFinalReport(item.finalReport);
+    setSources(item.sources);
+    setToolOutputs(item.toolOutputs);
+    setCalculations(item.calculations);
+    setModelUsed(item.modelUsed);
+    setSearchDepth(item.searchDepth);
+    setPlanReasoning(item.planReasoning);
+    setInitialAnswer(item.initialAnswer);
+    setNotes(item.notes);
+    setStatusMessage("Restored from history");
+    setActiveTab("report");
+    setHistoryOpen(false);
+    showToast("Research restored from history", "success");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
       {/* Navbar */}
@@ -366,6 +400,7 @@ export default function Home() {
         preferredModel={preferredModel}
         setPreferredModel={setPreferredModel}
         isLoading={isLoading}
+        onOpenHistory={() => setHistoryOpen(true)}
       />
 
       {/* Hero Search */}
@@ -732,6 +767,13 @@ export default function Home() {
 
       {/* Subtle Graph Architecture Summary */}
       <Architecture />
+
+      {/* Research History Sidebar */}
+      <ResearchHistory
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onRestore={restoreHistoryItem}
+      />
 
       {/* Minimal Footer */}
       <Footer />
