@@ -220,7 +220,9 @@ YOUR INSTRUCTIONS:
      -> Set "isEnough": true
      -> Set "toolCalls": []
      -> Set "reasoning": "Answered completely using internal knowledge; no external tools needed."
-   - ONLY request external tools if you genuinely need live external data, real-time crypto/stock prices, live GitHub repo stats, recent ArXiv papers, real DNS diagnostics, or specific demographic statistics that require verification.
+  - Questions asking what is new, latest, current, recent, today's status, or information from a specific year are time-sensitive. ALWAYS request "web_search" for these questions, even if you have a plausible answer from parametric knowledge.
+  - Also request the specialized tool whenever the question needs live external data, real-time crypto/stock prices, live GitHub repo stats, recent ArXiv papers, real DNS diagnostics, or specific demographic statistics that require verification.
+  - Never claim that a time-sensitive answer is current without consulting an external source.
 3. If tools ARE needed:
    - Provide the tool name and the EXACT input parameter in "toolCalls".
    - Set "isEnough": false.
@@ -276,9 +278,13 @@ Respond ONLY in valid JSON matching this schema:
   const isRepoQuery = /(github\.com|github\s*repo|repository\s*stars)/i.test(topicLower);
   const isDemoQuery = /(population\s*of|capital\s*of|demographics\s*of)/i.test(topicLower);
   const isDnsQuery = /(dns\s*record|mx\s*record|whois|resolve\s*domain)/i.test(topicLower);
+  const isFreshnessQuery = /(latest|new(?:est)?|current|recent|today|this\s+year|up[- ]to[- ]date|as\s+of|20(?:2[0-9]))/i.test(topicLower);
 
   if (plannedTools.length === 0 && !isSimpleGreeting) {
-    if (isMarketQuery) {
+    if (isFreshnessQuery) {
+      plannedTools.push({ tool: "web_search", input: state.topic, reason: "Verify current information from live web sources" });
+      isEnough = false;
+    } else if (isMarketQuery) {
       plannedTools.push({ tool: "finance", input: state.topic, reason: "Fetch live market price and quote data" });
       isEnough = false;
     } else if (isAcademicQuery) {

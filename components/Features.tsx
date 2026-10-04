@@ -80,7 +80,7 @@ export default function Features() {
           {featuresList.map((feature, idx) => (
             <div
               key={idx}
-              className="group rounded-2xl border border-stone-200 bg-stone-50/60 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-300 hover:bg-white hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-teal-500/40 dark:hover:bg-zinc-900"
+              className="group rounded-2xl border border-stone-200 bg-stone-50/60 p-6 transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-teal-300 hover:bg-white hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-teal-500/40 dark:hover:bg-zinc-900"
             >
               <div
                 className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl ${feature.tint}`}

@@ -1,4 +1,4 @@
-# DeepQuery — Autonomous Multi-Tool Research Agent
+# DeepQuery - Autonomous Multi-Tool Research Agent
 
 A Next.js 16 application that runs an autonomous research agent powered by **LangGraph**, **Groq**, and **Google Gemini**. Enter any research question and the agent plans, executes live tools in parallel, synthesizes findings, and streams back a cited Markdown report.
 
@@ -6,12 +6,12 @@ A Next.js 16 application that runs an autonomous research agent powered by **Lan
 
 ## Features
 
-- **Autonomous Graph Orchestration** — LangGraph state machine decides which tools to invoke based on your question.
-- **13 Live Integrated Tools** — Wikipedia, ArXiv, GitHub, Hacker News, Reddit, Demographics, Finance, World Bank, Weather, DNS, IP/WHOIS, Web Search, and a mathjs AST calculator.
-- **Multi-Provider LLM Fallbacks** — Primary Groq model with fallback models + Google Gemini fallback.
-- **Streaming Progress UI** — Real-time SSE updates as each graph node runs.
-- **Cited Markdown Reports** — Final output includes sources, calculations, and tool findings.
-- **Export Results** — Copy or download the report as Markdown or JSON.
+- **Autonomous Graph Orchestration** - LangGraph state machine decides which tools to invoke based on your question.
+- **13 Live Integrated Tools** - Wikipedia, ArXiv, GitHub, Hacker News, Reddit, Demographics, Finance, World Bank, Weather, DNS, IP/WHOIS, Web Search, and a mathjs AST calculator.
+- **Multi-Provider LLM Fallbacks** - Primary Groq model with fallback models + Google Gemini fallback.
+- **Streaming Progress UI** - Real-time SSE updates as each graph node runs.
+- **Cited Markdown Reports** - Final output includes sources, calculations, and tool findings.
+- **Export Results** - Copy or download the report as Markdown or JSON.
 
 ## Architecture
 
@@ -126,4 +126,4 @@ lib/agent/
 
 ## License
 
-Private project — see `package.json` for details.
+Private project - see `package.json` for details.

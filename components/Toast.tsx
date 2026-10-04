@@ -50,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur transition-all duration-300 ${toastStyles[toast.type].box}`}
+            className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur toast-entry ${toastStyles[toast.type].box}`}
           >
             {toastStyles[toast.type].icon}
             <span>{toast.message}</span>

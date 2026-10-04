@@ -8,6 +8,7 @@ interface AppHeaderProps {
   searchDepth: "standard" | "deep";
   setSearchDepth: (depth: "standard" | "deep") => void;
   isLoading: boolean;
+  sidebarOpen: boolean;
   onToggleSidebar: () => void;
 }
 
@@ -15,6 +16,7 @@ export default function AppHeader({
   searchDepth,
   setSearchDepth,
   isLoading,
+  sidebarOpen,
   onToggleSidebar,
 }: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme();
@@ -26,13 +28,15 @@ export default function AppHeader({
     <header className="sticky top-0 z-40 border-b border-stone-200/70 bg-stone-50/80 backdrop-blur-xl dark:border-zinc-800/70 dark:bg-zinc-950/80">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4">
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={onToggleSidebar}
-            aria-label="Toggle research history sidebar"
-            className={iconButton}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
+          {!sidebarOpen && (
+            <button
+              onClick={onToggleSidebar}
+              aria-label="Open research history sidebar"
+              className={iconButton}
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          )}
 
           {/* Brand / back to landing */}
           <Link href="/" className="group flex flex-shrink-0 items-center gap-2.5">

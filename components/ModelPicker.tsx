@@ -66,7 +66,7 @@ export default function ModelPicker({ value, onChange, disabled }: ModelPickerPr
         <div
           role="listbox"
           aria-label="Choose a model"
-          className="absolute bottom-full left-0 z-50 mb-2 w-64 overflow-hidden rounded-xl border border-stone-200 bg-white p-1 shadow-xl shadow-stone-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
+          className="absolute bottom-full left-0 z-50 mb-2 w-64 origin-bottom-left overflow-hidden rounded-xl border border-stone-200 bg-white p-1 shadow-xl shadow-stone-300/40 animate-pop-in dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
         >
           <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400 dark:text-zinc-500">
             Model

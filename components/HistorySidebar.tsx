@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BrainCircuit, Plus, Trash2, X, Clock } from "lucide-react";
+import { BrainCircuit, PanelLeft, Plus, Trash2, X, Clock } from "lucide-react";
 import type { HistoryItem } from "@/lib/history";
 
 interface HistorySidebarProps {
@@ -46,7 +46,7 @@ export default function HistorySidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-stone-200/70 bg-white transition-all duration-200 dark:border-zinc-800/70 dark:bg-zinc-950 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-stone-200/70 bg-white transition-[transform,width] duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] dark:border-zinc-800/70 dark:bg-zinc-950 ${
           isOpen
             ? "translate-x-0 md:w-72"
             : "-translate-x-full md:translate-x-0 md:w-0 md:flex-shrink-0 md:overflow-hidden md:border-r-0"
@@ -54,14 +54,23 @@ export default function HistorySidebar({
       >
         {/* Brand */}
         <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-stone-200/70 px-3 dark:border-zinc-800/70">
-          <Link href="/" className="group flex items-center gap-2 px-1">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-teal-600 shadow-sm transition-colors group-hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400 dark:group-hover:border-teal-500/40">
-              <BrainCircuit className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
-              DeepQuery
-            </span>
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onClose}
+              aria-label="Close research history sidebar"
+              className="cursor-pointer rounded-lg p-1.5 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+            <Link href="/" className="group flex items-center gap-2 px-1">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-teal-600 shadow-sm transition-colors group-hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400 dark:group-hover:border-teal-500/40">
+                <BrainCircuit className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
+                DeepQuery
+              </span>
+            </Link>
+          </div>
           <button
             onClick={onClose}
             aria-label="Close sidebar"

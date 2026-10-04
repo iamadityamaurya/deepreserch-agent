@@ -487,7 +487,7 @@ function ChatExperience() {
       />
 
       <div
-        className={`flex min-h-screen flex-col transition-[margin] duration-200 ${
+        className={`flex min-h-screen flex-col transition-[margin] duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
           sidebarOpen ? "md:ml-72" : "md:ml-0"
         }`}
       >
@@ -495,6 +495,7 @@ function ChatExperience() {
         searchDepth={searchDepth}
         setSearchDepth={setSearchDepth}
         isLoading={isLoading}
+        sidebarOpen={sidebarOpen}
         onToggleSidebar={toggleSidebar}
       />
 
@@ -506,17 +507,17 @@ function ChatExperience() {
             className="bg-dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_55%_45%_at_50%_40%,black,transparent)]"
           />
           <div className="relative flex w-full max-w-2xl flex-col items-center text-center">
-            <span className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-stone-200 bg-white text-teal-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400">
+            <span className="animate-rise-in mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-stone-200 bg-white text-teal-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400">
               <BrainCircuit className="h-7 w-7" />
             </span>
-            <h1 className="text-balance text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl dark:text-white">
+            <h1 className="animate-rise-in text-balance text-3xl font-semibold tracking-tight text-stone-900 [animation-delay:60ms] sm:text-4xl dark:text-white">
               What should we research?
             </h1>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
+            <p className="animate-rise-in mt-3 max-w-md text-sm leading-relaxed text-stone-500 [animation-delay:120ms] dark:text-zinc-400">
               The agent will plan a strategy, run real tools, and write a cited report.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            <div className="animate-rise-in mt-8 flex flex-wrap items-center justify-center gap-2 [animation-delay:180ms]">
               {samplePrompts.map((p) => (
                 <button
                   key={p}
@@ -956,8 +957,8 @@ function ChatExperience() {
 
       {/* Tool Output Inspector Modal */}
       {activeModalTool && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm dark:bg-zinc-950/80">
-          <div className="relative flex max-h-[80vh] w-full max-w-2xl flex-col space-y-3 rounded-2xl border border-stone-200 bg-white p-5 text-xs shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4 backdrop-blur-sm animate-fade-in dark:bg-zinc-950/80">
+          <div className="animate-pop-in relative flex max-h-[80vh] w-full max-w-2xl flex-col space-y-3 rounded-2xl border border-stone-200 bg-white p-5 text-xs shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
             <div className="flex items-center justify-between border-b border-stone-200 pb-2.5 dark:border-zinc-800">
               <div className="flex items-center gap-2">
                 {getToolIcon(activeModalTool.tool)}

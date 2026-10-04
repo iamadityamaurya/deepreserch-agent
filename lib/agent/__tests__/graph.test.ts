@@ -127,4 +127,35 @@ describe("researchAgentGraph integration", () => {
     expect(result.finalReport).toBeTruthy();
     expect(result.finalReport.length).toBeGreaterThan(0);
   });
+
+  it("uses web search for freshness-sensitive model questions", async () => {
+    const planResponse = JSON.stringify({
+      initialAnswer: "I may have background knowledge about GPT models, but the newest model requires live verification.",
+      reasoning: "The user asked for the newest model, so current web sources are required.",
+      toolCalls: [],
+      isEnough: true,
+    });
+
+    const synthesisResponse = JSON.stringify({
+      analysis: "Live web search results were collected.",
+      isEnough: true,
+      reasoning: "The current information is sufficient.",
+      followUpTools: [],
+    });
+
+    ChatGroqMock.mockImplementation(
+      () => createMockLLM([planResponse, synthesisResponse, "# Current GPT Models\nVerified live."]) as unknown as ChatGroq
+    );
+    ChatGoogleGenerativeAIMock.mockImplementation(() => createMockLLM([]) as unknown as ChatGoogleGenerativeAI);
+
+    const { researchAgentGraph } = await import("../graph");
+
+    const result = await researchAgentGraph.invoke({
+      topic: "What is the newest GPT model?",
+      searchDepth: "standard",
+      preferredModel: "openai/gpt-oss-20b",
+    });
+
+    expect(result.toolOutputs?.[0]?.tool).toBe("web_search");
+  });
 });

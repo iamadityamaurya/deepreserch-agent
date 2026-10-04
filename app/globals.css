@@ -8,6 +8,8 @@
 :root {
   --background: #fafaf9;
   --foreground: #1c1917;
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   color-scheme: light;
 }
 
@@ -45,10 +47,25 @@ html {
   background-image: radial-gradient(circle at 1px 1px, rgb(250 250 250 / 0.06) 1px, transparent 0);
 }
 
+/* ── Motion ─────────────────────────────────────────────── */
+
+/* Every button gives instant press feedback and uniform color transitions.
+   (Unlayered so it applies uniformly, regardless of per-button utilities.) */
+button:not(:disabled) {
+  touch-action: manipulation;
+  transition-property: transform, color, background-color, border-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -57,5 +74,71 @@ html {
 }
 
 .animate-rise-in {
-  animation: rise-in 0.5s ease-out both;
+  animation: rise-in 0.45s var(--ease-out-strong) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease both;
+}
+
+/* Popovers and modals enter from a visible shape - never from nothing.
+   Pair with an origin utility: bottom-left for anchored menus, center for modals. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.18s var(--ease-out-strong) both;
+}
+
+/* Toast entry, no JS needed. Exits instantly (exit > enter speed). */
+.toast-entry {
+  transition:
+    transform 0.2s var(--ease-out-strong),
+    opacity 0.2s ease;
+
+  @starting-style {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-rise-in,
+  .animate-pop-in {
+    animation: fade-in 0.15s ease both;
+  }
+
+  button:not(:disabled):active {
+    transform: none;
+  }
+
+  .toast-entry {
+    transition: opacity 0.15s ease;
+
+    @starting-style {
+      opacity: 0;
+      transform: none;
+    }
+  }
 }

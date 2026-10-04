@@ -120,7 +120,7 @@ export default function ToolsGrid() {
             <Link
               key={tool.name}
               href={`/chat?q=${encodeURIComponent(tool.sample)}`}
-              className="group rounded-2xl border border-stone-200 bg-stone-50/60 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-300 hover:bg-white hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-teal-500/40 dark:hover:bg-zinc-900"
+              className="group rounded-2xl border border-stone-200 bg-stone-50/60 p-4 transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-teal-300 hover:bg-white hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-teal-500/40 dark:hover:bg-zinc-900"
             >
               <div className="mb-3 flex items-center gap-2.5">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400">

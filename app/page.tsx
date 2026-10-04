@@ -51,17 +51,19 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <h1 className="animate-rise-in text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-stone-900 sm:text-6xl dark:text-white">
+          <h1
+            className="animate-rise-in text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-stone-900 [animation-delay:70ms] sm:text-6xl dark:text-white"
+          >
             Ask anything.
             <br />
             Get answers with sources.
           </h1>
-          <p className="animate-rise-in mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-stone-500 sm:text-lg dark:text-zinc-400">
+          <p className="animate-rise-in mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-stone-500 [animation-delay:140ms] sm:text-lg dark:text-zinc-400">
             DeepQuery plans a research strategy, runs real tools across the web, papers, and code,
-            then writes you a cited report — in a single chat.
+            then writes you a cited report - in a single chat.
           </p>
 
-          <div className="animate-rise-in mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="animate-rise-in mt-8 flex flex-wrap items-center justify-center gap-3 [animation-delay:210ms]">
             <Link
               href="/chat"
               className="flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700"
@@ -78,7 +80,7 @@ export default function LandingPage() {
           </div>
 
           {/* Supported sources */}
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-xs">
+          <div className="animate-rise-in mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-xs [animation-delay:280ms]">
             <span className="font-medium uppercase tracking-wider text-stone-400 dark:text-zinc-500">
               Integrated sources
             </span>
@@ -95,7 +97,7 @@ export default function LandingPage() {
         </div>
 
         {/* ── Product preview (decorative) ─────────────────────── */}
-        <div className="animate-rise-in relative mx-auto mt-14 max-w-3xl px-4 pb-20 sm:px-6">
+        <div className="animate-rise-in relative mx-auto mt-14 max-w-3xl px-4 pb-20 [animation-delay:350ms] sm:px-6">
           <div
             aria-hidden
             className="overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-xl shadow-stone-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
@@ -106,7 +108,7 @@ export default function LandingPage() {
               <span className="h-2.5 w-2.5 rounded-full bg-stone-200 dark:bg-zinc-700" />
               <span className="h-2.5 w-2.5 rounded-full bg-stone-200 dark:bg-zinc-700" />
               <span className="ml-3 text-xs text-stone-400 dark:text-zinc-500">
-                deepquery — research session
+                deepquery - research session
               </span>
             </div>
 
@@ -172,7 +174,7 @@ export default function LandingPage() {
               Ready to run your first deep research?
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm text-stone-600 dark:text-zinc-300">
-              Pick a model, choose your depth, and watch the agent work — free, in your browser.
+              Pick a model, choose your depth, and watch the agent work - free, in your browser.
             </p>
             <Link
               href="/chat"
