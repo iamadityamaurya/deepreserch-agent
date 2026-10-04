@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "DeepQuery - Ask anything, get answers with sources",
   description:
     "Autonomous research agent powered by LangGraph. DeepQuery plans a strategy, runs real tools across the web, papers, and code, and writes cited reports.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 // Applies the saved theme before first paint to avoid a flash of the wrong mode.
