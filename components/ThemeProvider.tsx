@@ -11,13 +11,16 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  return localStorage.getItem("theme") === "dark" ? "dark" : "light";
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  // Keep the first render identical on the server and client.
+  const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
