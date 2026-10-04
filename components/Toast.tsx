@@ -15,6 +15,21 @@ interface ToastContextValue {
   showToast: (message: string, type?: ToastType) => void;
 }
 
+const toastStyles: Record<ToastType, { box: string; icon: ReactNode }> = {
+  success: {
+    box: "border-emerald-200 bg-white text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100",
+    icon: <Check className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />,
+  },
+  error: {
+    box: "border-red-200 bg-white text-red-800 dark:border-red-800 dark:bg-red-950/90 dark:text-red-100",
+    icon: <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400" />,
+  },
+  info: {
+    box: "border-stone-200 bg-white text-stone-800 dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-100",
+    icon: <Info className="h-4 w-4 text-teal-500 dark:text-teal-400" />,
+  },
+};
+
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -35,27 +50,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium border transition-all duration-300 translate-y-0 opacity-100 ${
-              toast.type === "success"
-                ? "bg-emerald-950/90 border-emerald-700 text-emerald-100"
-                : toast.type === "error"
-                ? "bg-red-950/90 border-red-700 text-red-100"
-                : "bg-slate-900/90 border-slate-700 text-slate-100"
-            }`}
+            className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur transition-all duration-300 ${toastStyles[toast.type].box}`}
           >
-            {toast.type === "success" ? (
-              <Check className="w-4 h-4 text-emerald-400" />
-            ) : toast.type === "error" ? (
-              <AlertCircle className="w-4 h-4 text-red-400" />
-            ) : (
-              <Info className="w-4 h-4 text-indigo-400" />
-            )}
+            {toastStyles[toast.type].icon}
             <span>{toast.message}</span>
             <button
               onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
-              className="ml-1 p-0.5 rounded hover:bg-white/10 cursor-pointer"
+              className="ml-1 cursor-pointer rounded p-0.5 hover:bg-stone-100 dark:hover:bg-white/10"
+              aria-label="Dismiss notification"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         ))}

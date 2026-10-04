@@ -1,781 +1,190 @@
-"use client";
-
-import { useState, useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { useToast } from "@/components/Toast";
+import Link from "next/link";
 import {
-  BrainCircuit,
-  FileText,
-  Loader2,
-  Copy,
-  Download,
+  ArrowRight,
   BookOpen,
-  Code2,
-  TrendingUp,
-  Globe,
-  Wrench,
-  X,
-  ExternalLink,
-  ChevronRight,
-  ShieldCheck,
-  Compass,
-  Database,
-  Share2,
-  Check,
+  BrainCircuit,
   Calculator,
-  Printer,
-  RefreshCw,
+  Code2,
+  FileText,
+  Globe,
+  Loader2,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-import Hero from "@/components/Hero";
-import ToolsGrid from "@/components/ToolsGrid";
+import Features from "@/components/Features";
 import Architecture from "@/components/Architecture";
+import ToolsGrid from "@/components/ToolsGrid";
 import Footer from "@/components/Footer";
-import ResearchHistory from "@/components/ResearchHistory";
-import { saveToHistory, HistoryItem } from "@/lib/history";
 
-interface CalculationItem {
-  expression: string;
-  result: string;
-}
+const sources = [
+  { icon: <BookOpen className="h-3.5 w-3.5" />, label: "Wikipedia" },
+  { icon: <FileText className="h-3.5 w-3.5" />, label: "ArXiv" },
+  { icon: <Code2 className="h-3.5 w-3.5" />, label: "GitHub" },
+  { icon: <Share2 className="h-3.5 w-3.5" />, label: "Hacker News" },
+  { icon: <Globe className="h-3.5 w-3.5" />, label: "Demographics" },
+  { icon: <TrendingUp className="h-3.5 w-3.5" />, label: "Markets" },
+  { icon: <Calculator className="h-3.5 w-3.5" />, label: "AST Math" },
+  { icon: <ShieldCheck className="h-3.5 w-3.5" />, label: "DNS" },
+];
 
-interface CitationSource {
-  title: string;
-  url: string;
-  snippet?: string;
-  tool: string;
-}
-
-interface ToolResultItem {
-  tool: string;
-  input: string;
-  result: string;
-  reason?: string;
-  sources?: CitationSource[];
-  details?: unknown;
-}
-
-export default function Home() {
-  const [topic, setTopic] = useState("");
-  const [searchDepth, setSearchDepth] = useState<"standard" | "deep">("standard");
-  const [preferredModel, setPreferredModel] = useState<string>("openai/gpt-oss-120b");
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [currentNode, setCurrentNode] = useState("");
-  const [initialAnswer, setInitialAnswer] = useState("");
-  const [isEnough, setIsEnough] = useState(false);
-  const [planReasoning, setPlanReasoning] = useState("");
-  const [notes, setNotes] = useState<string[]>([]);
-  const [notesCount, setNotesCount] = useState(0);
-  const [calculationsCount, setCalculationsCount] = useState(0);
-  const [toolOutputsCount, setToolOutputsCount] = useState(0);
-  const [iterationCount, setIterationCount] = useState(0);
-  const [maxIterations, setMaxIterations] = useState(2);
-  const [modelUsed, setModelUsed] = useState("");
-  const [finalReport, setFinalReport] = useState("");
-  const [calculations, setCalculations] = useState<CalculationItem[]>([]);
-  const [toolOutputs, setToolOutputs] = useState<ToolResultItem[]>([]);
-  const [sources, setSources] = useState<CitationSource[]>([]);
-  const [activeModalTool, setActiveModalTool] = useState<ToolResultItem | null>(null);
-  const [activeTab, setActiveTab] = useState<"report" | "tools" | "sources" | "synthesis">("report");
-  const [copied, setCopied] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-
-  const { showToast } = useToast();
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const reportRef = useRef<HTMLDivElement>(null);
-
-  const handleStartResearch = async (overrideTopic?: string) => {
-    const query = overrideTopic || topic;
-    if (!query.trim() || isLoading) return;
-
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-
-    setIsLoading(true);
-    setTopic(query);
-
-    setStatusMessage("Initializing LangGraph Agent...");
-    setCurrentNode("plan_research");
-    setInitialAnswer("");
-    setIsEnough(false);
-    setPlanReasoning("");
-    setNotes([]);
-    setFinalReport("");
-    setNotesCount(0);
-    setCalculationsCount(0);
-    setToolOutputsCount(0);
-    setIterationCount(0);
-    setModelUsed("");
-    setCalculations([]);
-    setToolOutputs([]);
-    setSources([]);
-    setActiveModalTool(null);
-    setActiveTab("report");
-
-    try {
-      const response = await fetch("/api/research", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: query,
-          searchDepth,
-          preferredModel,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 429) {
-          throw new Error(errorData.message || "Too many requests. Please try again in a minute.");
-        }
-        throw new Error(errorData.error || "Failed to connect to agent stream");
-      }
-
-      if (!response.body) {
-        throw new Error("Failed to connect to agent stream");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === "node_start") {
-                setCurrentNode(data.node);
-              } else if (data.type === "progress") {
-                if (data.statusMessage) setStatusMessage(data.statusMessage);
-                if (data.initialAnswer) setInitialAnswer(data.initialAnswer);
-                if (data.isEnough !== undefined) setIsEnough(data.isEnough);
-                if (data.planReasoning) setPlanReasoning(data.planReasoning);
-                if (data.notes) setNotes(data.notes);
-                if (data.modelUsed) setModelUsed(data.modelUsed);
-                if (data.notesCount !== undefined) setNotesCount(data.notesCount);
-                if (data.calculationsCount !== undefined) setCalculationsCount(data.calculationsCount);
-                if (data.toolOutputsCount !== undefined) setToolOutputsCount(data.toolOutputsCount);
-                if (data.iterationCount !== undefined) setIterationCount(data.iterationCount);
-                if (data.maxIterations !== undefined) setMaxIterations(data.maxIterations);
-                if (data.toolOutputs) setToolOutputs(data.toolOutputs);
-                if (data.calculations) setCalculations(data.calculations);
-                if (data.sources) setSources(data.sources);
-                if (data.finalReport) setFinalReport(data.finalReport);
-              } else if (data.type === "complete") {
-                setStatusMessage("Research completed");
-                if (data.finalReport) setFinalReport(data.finalReport);
-                if (data.initialAnswer) setInitialAnswer(data.initialAnswer);
-                if (data.isEnough !== undefined) setIsEnough(data.isEnough);
-                if (data.modelUsed) setModelUsed(data.modelUsed);
-                if (data.calculations) setCalculations(data.calculations);
-                if (data.toolOutputs) setToolOutputs(data.toolOutputs);
-                if (data.sources) setSources(data.sources);
-                if (data.planReasoning) setPlanReasoning(data.planReasoning);
-                if (data.notes) setNotes(data.notes);
-
-                // Persist completed research to localStorage history
-                saveToHistory({
-                  topic: query,
-                  finalReport: data.finalReport || "",
-                  sources: data.sources || [],
-                  toolOutputs: data.toolOutputs || [],
-                  calculations: data.calculations || [],
-                  modelUsed: data.modelUsed || preferredModel,
-                  searchDepth,
-                  planReasoning: data.planReasoning || "",
-                  initialAnswer: data.initialAnswer || "",
-                  notes: data.notes || [],
-                });
-              } else if (data.type === "error") {
-                setStatusMessage(`Error: ${data.message}`);
-              }
-            } catch (err) {
-              console.error("SSE parse error:", err);
-            }
-          }
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setStatusMessage("Research stopped by user.");
-      } else {
-        const errMessage = err instanceof Error ? err.message : "Failed to execute agent";
-        setStatusMessage(`Error: ${errMessage}`);
-        showToast(errMessage, "error");
-      }
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  const handleStopResearch = () => {
-    abortControllerRef.current?.abort();
-  };
-
-  const copyToClipboard = () => {
-    if (!finalReport) return;
-    navigator.clipboard.writeText(finalReport);
-    setCopied(true);
-    showToast("Report copied to clipboard", "success");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const downloadHTML = () => {
-    if (!finalReport) return;
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DeepQuery Research Report</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1f2937; }
-    h1, h2, h3 { color: #111827; }
-    a { color: #4f46e5; }
-    pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; }
-    blockquote { border-left: 4px solid #e5e7eb; margin: 0; padding-left: 16px; color: #4b5563; }
-  </style>
-</head>
-<body>
-  <h1>Research Report</h1>
-  <p><strong>Topic:</strong> ${topic}</p>
-  ${finalReport}
-  ${sources.length > 0 ? `<h2>Sources</h2><ul>${sources.map((s) => `<li><a href="${s.url}">${s.title}</a></li>`).join("")}</ul>` : ""}
-</body>
-</html>`;
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Research_${topic.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast("HTML report downloaded", "success");
-  };
-
-  const printReport = () => {
-    if (!finalReport || !reportRef.current) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>DeepQuery Research Report</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1f2937; }
-            h1, h2, h3 { color: #111827; }
-            a { color: #4f46e5; }
-            pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; }
-          </style>
-        </head>
-        <body>${reportRef.current.innerHTML}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  };
-
-  const downloadMarkdown = () => {
-    if (!finalReport) return;
-    const blob = new Blob([finalReport], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Research_${topic.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast("Markdown report downloaded", "success");
-  };
-
-  const downloadJSON = () => {
-    const bundle = {
-      topic,
-      modelUsed,
-      iterationCount,
-      initialAnswer,
-      planReasoning,
-      calculations,
-      toolOutputs,
-      sources,
-      synthesisNotes: notes,
-      finalReport,
-      timestamp: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Research_Data_${topic.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast("Research data downloaded as JSON", "success");
-  };
-
-  const handleRetry = () => {
-    handleStartResearch(topic);
-  };
-
-  const getNodeClass = (nodeName: string) => {
-    if (currentNode === nodeName && isLoading) {
-      return "border-indigo-500 bg-indigo-950/40 text-indigo-200 shadow-sm animate-pulse";
-    }
-    if (finalReport || (iterationCount > 0 && currentNode !== nodeName)) {
-      return "border-slate-800 bg-slate-900/80 text-slate-300";
-    }
-    return "border-slate-800/60 bg-slate-950 text-slate-500";
-  };
-
-  const getToolIcon = (toolName: string) => {
-    switch (toolName.toLowerCase()) {
-      case "wikipedia":
-        return <BookOpen className="w-3.5 h-3.5 text-sky-400" />;
-      case "arxiv":
-        return <FileText className="w-3.5 h-3.5 text-blue-400" />;
-      case "github":
-        return <Code2 className="w-3.5 h-3.5 text-purple-400" />;
-      case "tech_discussions":
-      case "reddit":
-        return <Share2 className="w-3.5 h-3.5 text-orange-400" />;
-      case "demographics":
-      case "population":
-        return <Globe className="w-3.5 h-3.5 text-emerald-400" />;
-      case "finance":
-        return <TrendingUp className="w-3.5 h-3.5 text-amber-400" />;
-      case "dns_domain":
-      case "domain":
-        return <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />;
-      case "math":
-        return <Calculator className="w-3.5 h-3.5 text-pink-400" />;
-      default:
-        return <Wrench className="w-3.5 h-3.5 text-indigo-400" />;
-    }
-  };
-
-  const restoreHistoryItem = (item: HistoryItem) => {
-    setTopic(item.topic);
-    setFinalReport(item.finalReport);
-    setSources(item.sources);
-    setToolOutputs(item.toolOutputs);
-    setCalculations(item.calculations);
-    setModelUsed(item.modelUsed);
-    setSearchDepth(item.searchDepth);
-    setPlanReasoning(item.planReasoning);
-    setInitialAnswer(item.initialAnswer);
-    setNotes(item.notes);
-    setStatusMessage("Restored from history");
-    setActiveTab("report");
-    setHistoryOpen(false);
-    showToast("Research restored from history", "success");
-  };
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
-      {/* Navbar */}
-      <Navbar
-        modelUsed={modelUsed}
-        searchDepth={searchDepth}
-        setSearchDepth={setSearchDepth}
-        preferredModel={preferredModel}
-        setPreferredModel={setPreferredModel}
-        isLoading={isLoading}
-        onOpenHistory={() => setHistoryOpen(true)}
-      />
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-teal-600 selection:text-white dark:bg-zinc-950 dark:text-zinc-100">
+      <Navbar />
 
-      {/* Hero Search */}
-      <Hero
-        topic={topic}
-        setTopic={setTopic}
-        onSearchSubmit={(q) => handleStartResearch(q)}
-        isLoading={isLoading}
-      />
+      {/* ── Hero ─────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden
+          className="bg-dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_60%_55%_at_50%_30%,black,transparent)]"
+        />
 
-      {/* Active Research Workbench / Output Area */}
-      {(isLoading || finalReport || toolOutputs.length > 0) && (
-        <section className="py-8 max-w-4xl mx-auto px-4 space-y-6">
-          {/* Status Pipeline Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("plan_research")}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-purple-300">1. Plan</span>
-                {currentNode === "plan_research" && isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
-                ) : iterationCount > 0 ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : null}
-              </div>
-              <p className="text-[11px] text-slate-400 truncate">Deconstructing topic</p>
-            </div>
-
-            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("execute_tools")}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-sky-300">2. Tools ({toolOutputs.length})</span>
-                {currentNode === "execute_tools" && isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
-                ) : toolOutputs.length > 0 ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : null}
-              </div>
-              <p className="text-[11px] text-slate-400 truncate">Executing APIs</p>
-            </div>
-
-            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("synthesize_notes")}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-amber-300">3. Synthesize</span>
-                {currentNode === "synthesize_notes" && isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                ) : notes.length > 0 || finalReport ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : null}
-              </div>
-              <p className="text-[11px] text-slate-400 truncate">Cross-referencing</p>
-            </div>
-
-            <div className={`p-3 rounded-lg border transition-all ${getNodeClass("generate_report")}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-emerald-300">4. Report</span>
-                {currentNode === "generate_report" && isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
-                ) : finalReport ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : null}
-              </div>
-              <p className="text-[11px] text-slate-400 truncate">Formatting Markdown</p>
-            </div>
+        <div className="relative mx-auto max-w-5xl px-4 pt-20 text-center sm:px-6 md:pt-28">
+          <div className="animate-rise-in mb-6 flex justify-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white/70 px-3 py-1 text-xs font-medium text-stone-600 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-300">
+              <Sparkles className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+              Autonomous research agent
+            </span>
           </div>
 
-          {/* Status Message Line */}
-          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-            <div className="flex items-center space-x-2">
-              <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-indigo-500 animate-ping" : statusMessage.startsWith("Error") || statusMessage.startsWith("Research stopped") ? "bg-amber-400" : "bg-emerald-400"}`} />
-              <span className="font-mono text-slate-300">{statusMessage}</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-3 text-slate-400 font-mono">
-                <span>Tools: <strong className="text-sky-400">{toolOutputs.length}</strong></span>
-                <span>Sources: <strong className="text-indigo-400">{sources.length}</strong></span>
-              </div>
-              {isLoading && (
-                <button
-                  onClick={handleStopResearch}
-                  className="px-2.5 py-1 rounded bg-red-950/40 border border-red-800 text-red-300 hover:bg-red-900/50 hover:text-red-200 transition-colors font-medium text-[11px] flex items-center space-x-1 cursor-pointer"
-                >
-                  <X className="w-3 h-3" />
-                  <span>Stop</span>
-                </button>
-              )}
-              {!isLoading && (statusMessage.startsWith("Error") || statusMessage.startsWith("Research stopped")) && (
-                <button
-                  onClick={handleRetry}
-                  className="px-2.5 py-1 rounded bg-indigo-950/40 border border-indigo-800 text-indigo-300 hover:bg-indigo-900/50 hover:text-indigo-200 transition-colors font-medium text-[11px] flex items-center space-x-1 cursor-pointer"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Retry</span>
-                </button>
-              )}
-            </div>
+          <h1 className="animate-rise-in text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-stone-900 sm:text-6xl dark:text-white">
+            Ask anything.
+            <br />
+            Get answers with sources.
+          </h1>
+          <p className="animate-rise-in mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-stone-500 sm:text-lg dark:text-zinc-400">
+            DeepQuery plans a research strategy, runs real tools across the web, papers, and code,
+            then writes you a cited report — in a single chat.
+          </p>
+
+          <div className="animate-rise-in mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/chat"
+              className="flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700"
+            >
+              Start researching
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <a
+              href="#how-it-works"
+              className="rounded-full border border-stone-300 bg-white px-6 py-3 text-sm font-semibold text-stone-700 transition-colors hover:border-stone-400 hover:bg-stone-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
+            >
+              See how it works
+            </a>
           </div>
 
-          {/* AST Math Calculations Strip */}
-          {calculations.length > 0 && (
-            <div className="p-3 rounded-lg bg-pink-950/20 border border-pink-500/30 space-y-1.5 text-xs">
-              <span className="text-pink-300 font-medium">AST Math Calculations:</span>
-              <div className="flex flex-wrap gap-2">
-                {calculations.map((c, i) => (
-                  <div key={i} className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 font-mono">
-                    <span className="text-slate-400">{c.expression}</span> ={" "}
-                    <span className="text-pink-300 font-semibold">{c.result}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Results Tab Navigation & Reader Panel */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center space-x-1.5 text-xs">
-                <button
-                  onClick={() => setActiveTab("report")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                    activeTab === "report"
-                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Report
-                </button>
-                <button
-                  onClick={() => setActiveTab("tools")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                    activeTab === "tools"
-                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Tool Findings ({toolOutputs.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab("sources")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                    activeTab === "sources"
-                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Sources ({sources.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab("synthesis")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                    activeTab === "synthesis"
-                      ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Agent Strategy
-                </button>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={copyToClipboard}
-                  disabled={!finalReport}
-                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-indigo-400" />}
-                  <span>{copied ? "Copied" : "Copy"}</span>
-                </button>
-                <button
-                  onClick={downloadMarkdown}
-                  disabled={!finalReport}
-                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5 text-sky-400" />
-                  <span>.md</span>
-                </button>
-                <button
-                  onClick={downloadJSON}
-                  disabled={!finalReport && toolOutputs.length === 0}
-                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-                >
-                  <Database className="w-3.5 h-3.5 text-amber-400" />
-                  <span>JSON</span>
-                </button>
-                <button
-                  onClick={downloadHTML}
-                  disabled={!finalReport}
-                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>HTML</span>
-                </button>
-                <button
-                  onClick={printReport}
-                  disabled={!finalReport}
-                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Print</span>
-                </button>
-              </div>
-            </div>
-
-            {/* TAB 1: REPORT READER VIEW */}
-            {activeTab === "report" && (
+          {/* Supported sources */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-xs">
+            <span className="font-medium uppercase tracking-wider text-stone-400 dark:text-zinc-500">
+              Integrated sources
+            </span>
+            {sources.map((s) => (
               <div
-                ref={reportRef}
-                className="p-6 sm:p-8 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 shadow-lg"
+                key={s.label}
+                className="flex items-center gap-1.5 font-medium text-stone-600 dark:text-zinc-300"
               >
-                {finalReport ? (
-                  <article className="prose dark:prose-invert max-w-none prose-indigo prose-headings:font-bold prose-h1:text-2xl prose-h2:text-lg prose-h2:border-b prose-h2:border-slate-200 dark:prose-h2:border-slate-800 prose-h2:pb-1.5 prose-a:text-indigo-600 dark:prose-a:text-indigo-400 hover:prose-a:text-indigo-500 dark:hover:prose-a:text-indigo-300 prose-pre:bg-slate-100 dark:prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800 text-sm leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalReport}</ReactMarkdown>
-                  </article>
-                ) : (
-                  <div className="py-12 text-center space-y-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500 dark:text-indigo-400 mx-auto" />
-                    <p className="text-slate-600 dark:text-slate-300 text-sm font-medium">Synthesizing research report...</p>
-                  </div>
-                )}
+                <span className="text-teal-600 dark:text-teal-400">{s.icon}</span>
+                {s.label}
               </div>
-            )}
+            ))}
+          </div>
+        </div>
 
-            {/* TAB 2: TOOL FINDINGS */}
-            {activeTab === "tools" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {toolOutputs.map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => setActiveModalTool(item)}
-                    className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 transition-all cursor-pointer space-y-2 group"
+        {/* ── Product preview (decorative) ─────────────────────── */}
+        <div className="animate-rise-in relative mx-auto mt-14 max-w-3xl px-4 pb-20 sm:px-6">
+          <div
+            aria-hidden
+            className="overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-xl shadow-stone-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
+          >
+            {/* Window chrome */}
+            <div className="flex items-center gap-1.5 border-b border-stone-100 px-4 py-3 dark:border-zinc-800">
+              <span className="h-2.5 w-2.5 rounded-full bg-stone-200 dark:bg-zinc-700" />
+              <span className="h-2.5 w-2.5 rounded-full bg-stone-200 dark:bg-zinc-700" />
+              <span className="h-2.5 w-2.5 rounded-full bg-stone-200 dark:bg-zinc-700" />
+              <span className="ml-3 text-xs text-stone-400 dark:text-zinc-500">
+                deepquery — research session
+              </span>
+            </div>
+
+            <div className="space-y-4 p-5 sm:p-6">
+              {/* User turn */}
+              <div className="flex justify-end">
+                <p className="max-w-[85%] rounded-3xl rounded-br-md bg-teal-600 px-4 py-2.5 text-sm leading-relaxed text-white">
+                  How does linear attention compare to standard attention in 2025 models?
+                </p>
+              </div>
+
+              {/* Agent trace */}
+              <div className="flex items-center gap-2 text-xs text-stone-400 dark:text-zinc-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-600 dark:text-teal-400" />
+                <span>Planning · Running 6 tools · Reading 14 sources</span>
+              </div>
+
+              {/* Answer */}
+              <div className="space-y-2.5 text-sm leading-relaxed text-stone-600 dark:text-zinc-300">
+                <p>
+                  Linear attention reduces sequence complexity from O(n²) to O(n), and on
+                  long-context benchmarks retrieval quality now lands within{" "}
+                  <span className="font-medium text-stone-900 dark:text-white">2–4%</span> of full
+                  attention. <sup className="font-medium text-teal-600 dark:text-teal-400">[1]</sup>
+                </p>
+                <p>
+                  Trade-offs persist on exact-recall tasks, where hybrid architectures recover most
+                  of the gap. <sup className="font-medium text-teal-600 dark:text-teal-400">[2]</sup>
+                </p>
+              </div>
+
+              {/* Source chips */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {["arxiv.org", "github.com", "wikipedia.org"].map((host) => (
+                  <span
+                    key={host}
+                    className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 font-mono text-[11px] text-stone-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {getToolIcon(item.tool)}
-                        <span className="font-semibold text-xs text-slate-200 uppercase tracking-wider">
-                          {item.tool}
-                        </span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
-                    </div>
-                    <p className="text-xs text-slate-400 font-mono truncate">&ldquo;{item.input}&rdquo;</p>
-                    <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 max-h-24 overflow-hidden relative">
-                      <pre className="whitespace-pre-wrap">{item.result}</pre>
-                    </div>
-                  </div>
+                    {host}
+                  </span>
                 ))}
               </div>
-            )}
-
-            {/* TAB 3: SOURCES */}
-            {activeTab === "sources" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {sources.length > 0 ? (
-                  sources.map((s, idx) => (
-                    <a
-                      key={idx}
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 transition-all space-y-1.5 group block text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-[10px]">
-                          {s.tool}
-                        </span>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-                      </div>
-                      <h4 className="font-semibold text-slate-200 group-hover:text-indigo-200 transition-colors truncate">
-                        {s.title}
-                      </h4>
-                      {s.snippet && <p className="text-slate-400 line-clamp-2">{s.snippet}</p>}
-                    </a>
-                  ))
-                ) : (
-                  <div className="col-span-2 py-8 text-center text-slate-500 text-xs">
-                    No citation links gathered yet.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 4: STRATEGY & NOTES */}
-            {activeTab === "synthesis" && (
-              <div className="space-y-3 text-xs">
-                {initialAnswer && (
-                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-                    <h3 className="font-semibold text-purple-300 uppercase tracking-wider text-[11px]">
-                      Initial Baseline & Knowledge
-                    </h3>
-                    <p className="text-slate-400 leading-relaxed whitespace-pre-wrap">{initialAnswer}</p>
-                  </div>
-                )}
-
-                {planReasoning && (
-                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-                    <h3 className="font-semibold text-indigo-300 uppercase tracking-wider text-[11px]">
-                      Tool Selection Strategy
-                    </h3>
-                    <p className="text-slate-400 leading-relaxed">{planReasoning}</p>
-                  </div>
-                )}
-
-                {notes.length > 0 && (
-                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                    <h3 className="font-semibold text-emerald-300 uppercase tracking-wider text-[11px]">
-                      Synthesis Notes ({notes.length})
-                    </h3>
-                    <div className="space-y-2">
-                      {notes.map((note, idx) => (
-                        <div key={idx} className="p-2.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
-                          {note}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Tool Output Inspector Modal */}
-      {activeModalTool && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 shadow-2xl relative max-h-[80vh] flex flex-col text-xs">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center space-x-2">
-                {getToolIcon(activeModalTool.tool)}
-                <h3 className="font-semibold text-slate-200 uppercase tracking-wider">
-                  {activeModalTool.tool} Execution Inspector
-                </h3>
-              </div>
-              <button
-                onClick={() => setActiveModalTool(null)}
-                className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div>
-              <span className="text-slate-500 font-medium">Input Query:</span>
-              <div className="mt-1 p-2 bg-slate-950 rounded font-mono text-indigo-300 border border-slate-800">
-                {activeModalTool.input}
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto rounded bg-slate-950 p-3 border border-slate-800">
-              <pre className="font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">
-                {activeModalTool.result}
-              </pre>
             </div>
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Subtle Integrated Tools Catalog */}
-      <ToolsGrid
-        onSelectToolSample={(sampleQuery) => {
-          setTopic(sampleQuery);
-          handleStartResearch(sampleQuery);
-        }}
-      />
+      {/* ── Capabilities ─────────────────────────────────────── */}
+      <Features />
 
-      {/* Subtle Graph Architecture Summary */}
+      {/* ── Pipeline ─────────────────────────────────────────── */}
       <Architecture />
 
-      {/* Research History Sidebar */}
-      <ResearchHistory
-        isOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        onRestore={restoreHistoryItem}
-      />
+      {/* ── Tools ────────────────────────────────────────────── */}
+      <ToolsGrid />
 
-      {/* Minimal Footer */}
+      {/* ── CTA ──────────────────────────────────────────────── */}
+      <section className="border-t border-stone-200/70 py-20 dark:border-zinc-800/70">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="rounded-3xl border border-teal-600/20 bg-teal-50 p-10 text-center dark:border-teal-500/20 dark:bg-teal-500/10">
+            <BrainCircuit className="mx-auto mb-4 h-8 w-8 text-teal-600 dark:text-teal-400" />
+            <h2 className="text-balance text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl dark:text-white">
+              Ready to run your first deep research?
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-sm text-stone-600 dark:text-zinc-300">
+              Pick a model, choose your depth, and watch the agent work — free, in your browser.
+            </p>
+            <Link
+              href="/chat"
+              className="mt-7 inline-flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700"
+            >
+              Launch DeepQuery
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );

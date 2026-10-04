@@ -6,89 +6,91 @@ import {
   FileCode2,
   Globe,
   RefreshCw,
-  Search,
   ShieldCheck,
-  Sparkles,
   Zap,
 } from "lucide-react";
 
 export default function Features() {
   const featuresList = [
     {
-      icon: <BrainCircuit className="w-6 h-6 text-purple-400" />,
+      icon: <BrainCircuit className="h-5 w-5 text-teal-600 dark:text-teal-400" />,
+      tint: "bg-teal-50 dark:bg-teal-500/10",
       title: "Autonomous Graph Orchestration",
       description:
-        "Built on LangGraph state machine. The agent dynamically decides which specialized tools to invoke based on question semantics.",
-      accent: "from-purple-500/20 to-indigo-500/10 border-purple-500/30",
+        "Built on a LangGraph state machine. The agent dynamically decides which specialized tools to invoke based on question semantics.",
     },
     {
-      icon: <RefreshCw className="w-6 h-6 text-sky-400" />,
+      icon: <RefreshCw className="h-5 w-5 text-teal-600 dark:text-teal-400" />,
+      tint: "bg-teal-50 dark:bg-teal-500/10",
       title: "Multi-Cycle Iterative Reflection",
       description:
         "Rather than a single prompt-response, the agent inspects intermediate findings, synthesizes notes, and runs follow-up tools if gaps exist.",
-      accent: "from-sky-500/20 to-blue-500/10 border-sky-500/30",
     },
     {
-      icon: <Calculator className="w-6 h-6 text-pink-400" />,
-      title: "Zero-Hallucination AST Math Engine",
+      icon: <Calculator className="h-5 w-5 text-teal-600 dark:text-teal-400" />,
+      tint: "bg-teal-50 dark:bg-teal-500/10",
+      title: "Zero-Hallucination AST Math",
       description:
         "Passes mathematical expressions to a mathjs AST engine, guaranteeing exact precision for compound growth, ratios, and formulas.",
-      accent: "from-pink-500/20 to-rose-500/10 border-pink-500/30",
     },
     {
-      icon: <FileCode2 className="w-6 h-6 text-indigo-400" />,
+      icon: <FileCode2 className="h-5 w-5 text-teal-600 dark:text-teal-400" />,
+      tint: "bg-teal-50 dark:bg-teal-500/10",
       title: "ArXiv & GitHub Code Analysis",
       description:
-        "Mines research papers directly from ArXiv preprints and fetches repository statistics, open issues, stars, and README details from GitHub.",
-      accent: "from-indigo-500/20 to-purple-500/10 border-indigo-500/30",
+        "Mines research papers from ArXiv preprints and fetches repository statistics, open issues, stars, and README details from GitHub.",
     },
     {
-      icon: <Globe className="w-6 h-6 text-emerald-400" />,
+      icon: <Globe className="h-5 w-5 text-teal-600 dark:text-teal-400" />,
+      tint: "bg-teal-50 dark:bg-teal-500/10",
       title: "Live Demographics & Financial Data",
       description:
-        "Retrieves real-time capital, population, currency, and language data for any country alongside live cryptocurrency and stock quotes.",
-      accent: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30",
+        "Retrieves real-time capital, population, currency, and language data for any country alongside live crypto and stock quotes.",
     },
     {
-      icon: <ShieldCheck className="w-6 h-6 text-cyan-400" />,
+      icon: <ShieldCheck className="h-5 w-5 text-teal-600 dark:text-teal-400" />,
+      tint: "bg-teal-50 dark:bg-teal-500/10",
       title: "DNS Diagnostics & Web Scraping",
       description:
-        "Performs real-time domain name resolution (A records, MX mail servers, TXT security records) and live HTML web scraping via Cheerio.",
-      accent: "from-cyan-500/20 to-sky-500/10 border-cyan-500/30",
+        "Performs real-time domain name resolution (A records, MX mail servers, TXT records) and live HTML scraping via Cheerio.",
     },
   ];
 
   return (
-    <section id="features" className="py-16 md:py-24 relative border-t border-slate-800/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-        {/* Section Header */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-purple-400">
-            <Zap className="w-3.5 h-3.5" />
-            <span>Core Capabilities</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
-            Engineered for Uncompromising Empirical Rigor
+    <section
+      id="features"
+      className="scroll-mt-20 border-t border-stone-200/70 bg-white py-20 dark:border-zinc-800/70 dark:bg-zinc-950"
+    >
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mx-auto mb-12 max-w-2xl text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+            <Zap className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+            Core Capabilities
+          </span>
+          <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl dark:text-white">
+            Engineered for uncompromising empirical rigor
           </h2>
-          <p className="text-slate-400 text-base">
-            DeepQuery combines state-graph autonomy, real-time API integrations, and mathematical calculation engines to deliver trusted answers.
+          <p className="mt-4 text-pretty text-stone-500 dark:text-zinc-400">
+            DeepQuery combines state-graph autonomy, real-time API integrations, and mathematical
+            calculation engines to deliver trusted answers.
           </p>
         </div>
 
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {featuresList.map((feature, idx) => (
             <div
               key={idx}
-              className={`p-6 rounded-2xl bg-gradient-to-b ${feature.accent} bg-slate-900/60 border backdrop-blur-md hover:scale-[1.02] transition-all duration-300 space-y-4 group`}
+              className="group rounded-2xl border border-stone-200 bg-stone-50/60 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-300 hover:bg-white hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-teal-500/40 dark:hover:bg-zinc-900"
             >
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 w-fit group-hover:border-purple-500/50 transition-colors">
+              <div
+                className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl ${feature.tint}`}
+              >
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-white group-hover:text-purple-200 transition-colors">
+              <h3 className="mb-2 text-base font-semibold text-stone-900 dark:text-white">
                 {feature.title}
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
                 {feature.description}
               </p>
             </div>

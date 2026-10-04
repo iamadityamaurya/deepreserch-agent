@@ -15,9 +15,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DeepQuery - Autonomous Research AI Agent",
-  description: "Autonomous multi-step research agent powered by LangGraph, Google Gemini, and Groq.",
+  title: "DeepQuery — Ask anything, get answers with sources",
+  description:
+    "Autonomous research agent powered by LangGraph. DeepQuery plans a strategy, runs real tools across the web, papers, and code, and writes cited reports.",
 };
+
+// Applies the saved theme before first paint to avoid a flash of the wrong mode.
+const themeInitScript = `
+(function () {
+  try {
+    if (localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark");
+    }
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -26,6 +38,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <ToastProvider>{children}</ToastProvider>

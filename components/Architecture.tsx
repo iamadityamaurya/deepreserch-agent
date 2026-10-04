@@ -3,50 +3,63 @@
 export default function Architecture() {
   const steps = [
     {
-      name: "1. Plan",
-      title: "Query Deconstruction",
-      desc: "Breaks topic into subtopics & tool calls",
-      color: "text-purple-400 border-purple-500/20 bg-purple-950/10",
+      name: "01",
+      title: "Plan",
+      desc: "Breaks the topic into subtopics and tool calls.",
     },
     {
-      name: "2. Execute",
-      title: "Parallel Tool Retrieval",
-      desc: "Queries ArXiv, GitHub, HN, Web, Math & APIs",
-      color: "text-sky-400 border-sky-500/20 bg-sky-950/10",
+      name: "02",
+      title: "Execute",
+      desc: "Queries ArXiv, GitHub, HN, web, math & APIs.",
     },
     {
-      name: "3. Synthesize",
-      title: "Iterative Reflection",
-      desc: "Evaluates completeness & checks logic",
-      color: "text-amber-400 border-amber-500/20 bg-amber-950/10",
+      name: "03",
+      title: "Synthesize",
+      desc: "Evaluates completeness, cross-references and checks logic.",
     },
     {
-      name: "4. Report",
-      title: "Cited Report Stream",
-      desc: "Formats Markdown report with sources",
-      color: "text-emerald-400 border-emerald-500/20 bg-emerald-950/10",
+      name: "04",
+      title: "Report",
+      desc: "Formats a cited Markdown report with sources.",
     },
   ];
 
   return (
-    <section className="py-10 border-t border-slate-800/60 bg-slate-950">
-      <div className="max-w-6xl mx-auto px-4 space-y-6">
-        <div className="text-left space-y-1">
-          <h2 className="text-lg font-semibold text-slate-200">LangGraph Pipeline</h2>
-          <p className="text-xs text-slate-400">
-            Self-reflecting agent workflow executed on every research query.
+    <section
+      id="how-it-works"
+      className="scroll-mt-20 border-t border-stone-200/70 bg-stone-50 py-20 dark:border-zinc-800/70 dark:bg-zinc-950/60"
+    >
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-10 max-w-2xl">
+          <h2 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl dark:text-white">
+            How it works
+          </h2>
+          <p className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
+            A self-reflecting LangGraph pipeline executed on every question you ask.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {steps.map((node, idx) => (
-            <div
-              key={idx}
-              className={`p-4 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1 ${node.color}`}
-            >
-              <span className="text-[11px] font-mono font-semibold">{node.name}</span>
-              <h3 className="text-xs font-semibold text-slate-200">{node.title}</h3>
-              <p className="text-[11px] text-slate-400">{node.desc}</p>
+        <div className="relative grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Connector line (desktop) */}
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 top-4 hidden h-px bg-gradient-to-r from-transparent via-stone-200 to-transparent lg:block dark:via-zinc-800"
+          />
+
+          {steps.map((node) => (
+            <div key={node.name} className="relative">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-teal-600/30 bg-white text-[11px] font-semibold text-teal-600 shadow-sm dark:border-teal-500/40 dark:bg-zinc-900 dark:text-teal-400">
+                  {node.name}
+                </span>
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+              </div>
+              <h3 className="text-base font-semibold text-stone-900 dark:text-white">
+                {node.title}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
+                {node.desc}
+              </p>
             </div>
           ))}
         </div>

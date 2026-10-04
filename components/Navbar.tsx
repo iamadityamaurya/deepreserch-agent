@@ -1,103 +1,60 @@
 "use client";
 
-import { BrainCircuit, Moon, Sun, History } from "lucide-react";
+import Link from "next/link";
+import { BrainCircuit, Moon, Sun, ArrowRight } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
-interface NavbarProps {
-  modelUsed?: string;
-  searchDepth: "standard" | "deep";
-  setSearchDepth: (depth: "standard" | "deep") => void;
-  preferredModel: string;
-  setPreferredModel: (model: string) => void;
-  isLoading: boolean;
-  onOpenHistory: () => void;
-}
+const navLinks = [
+  { href: "/#features", label: "Features" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#tools", label: "Tools" },
+];
 
-export default function Navbar({
-  searchDepth,
-  setSearchDepth,
-  preferredModel,
-  setPreferredModel,
-  isLoading,
-  onOpenHistory,
-}: NavbarProps) {
+export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800/70">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        {/* Brand Logo */}
-        <div
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="flex items-center space-x-2.5 cursor-pointer group"
-        >
-          <div className="p-2 bg-indigo-600/10 border border-indigo-500/30 rounded-xl text-indigo-500 dark:text-indigo-400 group-hover:bg-indigo-600/20 group-hover:border-indigo-500/50 transition-all">
-            <BrainCircuit className="w-5 h-5" />
-          </div>
-          <span className="font-bold text-slate-900 dark:text-slate-100 text-base tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
+    <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-stone-50/80 backdrop-blur-xl dark:border-zinc-800/70 dark:bg-zinc-950/80">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        {/* Brand */}
+        <Link href="/" className="group flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-white text-teal-600 shadow-sm transition-colors group-hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400 dark:group-hover:border-teal-500/40">
+            <BrainCircuit className="h-5 w-5" />
+          </span>
+          <span className="text-[15px] font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
             DeepQuery
           </span>
-        </div>
+        </Link>
 
-        {/* Right Configuration Controls */}
-        <div className="flex items-center space-x-3 text-xs">
-          {/* History Toggle */}
-          <button
-            onClick={onOpenHistory}
-            aria-label="Open research history"
-            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-          >
-            <History className="w-4 h-4" />
-          </button>
+        {/* Links */}
+        <nav className="hidden items-center gap-7 text-sm font-medium text-stone-600 md:flex dark:text-zinc-400">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="transition-colors hover:text-stone-900 dark:hover:text-zinc-100"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-          {/* Theme Toggle */}
+        {/* Actions */}
+        <div className="flex items-center gap-2">
           <button
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200/60 hover:text-stone-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
-          {/* Search Depth Selector */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-0.5">
-            <button
-              onClick={() => setSearchDepth("standard")}
-              disabled={isLoading}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
-                searchDepth === "standard"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              Standard
-            </button>
-            <button
-              onClick={() => setSearchDepth("deep")}
-              disabled={isLoading}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
-                searchDepth === "deep"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              Deep Dive
-            </button>
-          </div>
-
-          {/* Model Selector */}
-          <div className="relative">
-            <select
-              value={preferredModel}
-              onChange={(e) => setPreferredModel(e.target.value)}
-              disabled={isLoading}
-              className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-200 outline-none focus:border-indigo-500/50 text-xs font-medium cursor-pointer transition-colors"
-            >
-              <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-              <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
-              <option value="qwen/qwen3.8-27b">Qwen 27B</option>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-            </select>
-          </div>
+          <Link
+            href="/chat"
+            className="flex items-center gap-1.5 rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700"
+          >
+            Launch app
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
     </header>
