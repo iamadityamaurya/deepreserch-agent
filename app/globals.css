@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: every `dark:` utility responds to <html class="dark">
+   (Tailwind v4 defaults `dark:` to the OS media query, which is why the toggle
+   appeared to do nothing). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #fafaf9;
   --foreground: #1c1917;

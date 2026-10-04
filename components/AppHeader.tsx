@@ -25,15 +25,25 @@ export default function AppHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200/70 bg-stone-50/80 backdrop-blur-xl dark:border-zinc-800/70 dark:bg-zinc-950/80">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4">
-        {/* Brand / back to landing */}
-        <Link href="/" className="group flex flex-shrink-0 items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-teal-600 shadow-sm transition-colors group-hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400 dark:group-hover:border-teal-500/40">
-            <BrainCircuit className="h-4 w-4" />
-          </span>
-          <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
-            DeepQuery
-          </span>
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onToggleSidebar}
+            aria-label="Toggle research history sidebar"
+            className={iconButton}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
+
+          {/* Brand / back to landing */}
+          <Link href="/" className="group flex flex-shrink-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-teal-600 shadow-sm transition-colors group-hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-teal-400 dark:group-hover:border-teal-500/40">
+              <BrainCircuit className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
+              DeepQuery
+            </span>
+          </Link>
+        </div>
 
         {/* Session controls */}
         <div className="flex items-center gap-1.5 text-xs sm:gap-2">
@@ -61,14 +71,6 @@ export default function AppHeader({
               Deep Dive
             </button>
           </div>
-
-          <button
-            onClick={onToggleSidebar}
-            aria-label="Toggle research history sidebar"
-            className={iconButton}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
 
           <button
             onClick={toggleTheme}
