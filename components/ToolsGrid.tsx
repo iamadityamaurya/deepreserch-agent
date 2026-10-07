@@ -15,6 +15,8 @@ import {
   CloudSun,
   Network,
   MessageSquare,
+  Newspaper,
+  Coins,
 } from "lucide-react";
 
 const catalog = [
@@ -67,6 +69,12 @@ const catalog = [
     sample: "Postgres vs SQLite for AI agents on Hacker News",
   },
   {
+    name: "GDELT Global News",
+    icon: <Newspaper className="h-4 w-4" />,
+    description: "Worldwide news coverage and event timelines from thousands of outlets.",
+    sample: "Global news coverage of semiconductor export controls",
+  },
+  {
     name: "REST Demographics",
     icon: <Globe className="h-4 w-4" />,
     description: "Live population, capitals, languages, and geographic statistics.",
@@ -77,6 +85,12 @@ const catalog = [
     icon: <TrendingUp className="h-4 w-4" />,
     description: "Real-time cryptocurrency quotes, stock tickers, and price movements.",
     sample: "BTC and ETH 24h market movement and price trends",
+  },
+  {
+    name: "Currency Exchange",
+    icon: <Coins className="h-4 w-4" />,
+    description: "Official ECB reference rates and conversion for 30+ world currencies.",
+    sample: "Convert 100 USD to EUR exchange rate",
   },
   {
     name: "DNS Resolution",

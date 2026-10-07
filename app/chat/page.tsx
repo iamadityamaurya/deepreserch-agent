@@ -28,6 +28,8 @@ import {
   RefreshCw,
   Square,
   Sparkles,
+  Newspaper,
+  Coins,
 } from "lucide-react";
 
 import AppHeader from "@/components/AppHeader";
@@ -410,6 +412,13 @@ function ChatExperience() {
         return <ShieldCheck className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />;
       case "math":
         return <Calculator className="h-3.5 w-3.5 text-pink-600 dark:text-pink-400" />;
+      case "gdelt_news":
+      case "news":
+        return <Newspaper className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />;
+      case "currency_exchange":
+      case "currency":
+      case "fx":
+        return <Coins className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />;
       default:
         return <Wrench className="h-3.5 w-3.5 text-stone-500 dark:text-zinc-400" />;
     }

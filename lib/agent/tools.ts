@@ -85,6 +85,16 @@ export const AVAILABLE_TOOLS_CATALOG = [
     description: "Search Reddit community discussions, trending posts, thread feedback, and user sentiment on AI, tech, or general topics.",
     inputFormat: "Subreddit or topic search (e.g. 'r/MachineLearning', 'Claude 3.7 Sonnet benchmark', 'r/technology')",
   },
+  {
+    name: "gdelt_news",
+    description: "Search GDELT global news coverage across thousands of worldwide outlets for current events, breaking stories, geopolitics, and media narratives.",
+    inputFormat: "Topic or event keywords (e.g. 'semiconductor export controls', 'global climate negotiations', 'central bank interest rates')",
+  },
+  {
+    name: "currency_exchange",
+    description: "Convert world currencies and fetch official ECB foreign-exchange reference rates for 30+ currencies, with optional historical dates.",
+    inputFormat: "Conversion query (e.g. '100 USD to EUR', 'JPY to INR', 'USD to EUR on 2025-06-01')",
+  },
 ];
 
 /**
@@ -1135,4 +1145,184 @@ export async function searchRedditCommunity(query: string): Promise<ToolResult> 
     result: `Reddit community search for "${clean}" executed.`,
     sources: [],
   };
+}
+
+/**
+ * 14. GDELT GLOBAL NEWS TOOL
+ */
+export async function searchGdeltNews(query: string): Promise<ToolResult> {
+  const sources: CitationSource[] = [];
+  if (!query || typeof query !== "string") {
+    return { tool: "gdelt_news", input: query, result: "Error: No query provided for GDELT news search." };
+  }
+
+  const clean = query.trim();
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(clean)}&mode=ArtList&maxrecords=8&sort=DateDesc&format=json`;
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+
+    if (res.status === 429) {
+      return { tool: "gdelt_news", input: query, result: `GDELT rate limit reached (1 request per 5 seconds per IP). Retry in ~30 seconds or use web_search for "${clean}".` };
+    }
+
+    if (res.ok) {
+      // GDELT returns plain text (rate limit / no results) instead of JSON.
+      const text = await res.text();
+      let data: { articles?: unknown[] };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return {
+          tool: "gdelt_news",
+          input: query,
+          result: `GDELT is rate-limiting requests right now (one query every 5 seconds). Try again shortly or use web_search for "${clean}".`,
+        };
+      }
+
+      interface GdeltArticle {
+        url: string;
+        title: string;
+        seendate?: string;
+        domain?: string;
+        language?: string;
+        sourcecountry?: string;
+      }
+
+      const articles = (Array.isArray(data.articles) ? data.articles : []) as GdeltArticle[];
+
+      if (articles.length > 0) {
+        const formatSeenDate = (seen?: string): string => {
+          // GDELT format: "20261002T074500Z" -> "2026-10-02 07:45 UTC"
+          const m = seen?.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+          return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]} UTC` : "recent";
+        };
+
+        const formatted = articles.map((item: GdeltArticle, idx: number) => {
+          const when = formatSeenDate(item.seendate);
+          const meta = [item.domain, when, item.language, item.sourcecountry].filter(Boolean).join(" | ");
+
+          sources.push({
+            title: item.title,
+            url: item.url,
+            snippet: meta,
+            tool: "gdelt_news",
+          });
+
+          return `[News ${idx + 1}] **${item.title}**\nSource: ${item.domain || "unknown"} | Published: ${when}${item.language ? ` | Language: ${item.language}` : ""}${item.sourcecountry ? ` | Country: ${item.sourcecountry}` : ""}\nLink: ${item.url}`;
+        });
+
+        return {
+          tool: "gdelt_news",
+          input: query,
+          result: formatted.join("\n\n"),
+          sources,
+          details: articles,
+        };
+      }
+
+      return { tool: "gdelt_news", input: query, result: `No recent global news coverage found for "${clean}".` };
+    }
+
+    return { tool: "gdelt_news", input: query, result: `GDELT returned HTTP ${res.status}. News coverage unavailable for "${clean}".` };
+  } catch (err) {
+    console.warn("GDELT news search error:", err);
+    return { tool: "gdelt_news", input: query, result: `GDELT news search failed: ${err instanceof Error ? err.message : "unknown error"}` };
+  }
+}
+
+/**
+ * 15. CURRENCY EXCHANGE TOOL (Frankfurter / ECB reference rates)
+ */
+const FRANKFURTER_CURRENCIES = new Set([
+  "AUD", "BGN", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD",
+  "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD",
+  "PHP", "PLN", "RON", "SEK", "SGD", "THB", "TRY", "USD", "ZAR",
+]);
+
+const CURRENCY_UNSUPPORTED = (code: string): string =>
+  `Error: "${code}" is not an ECB-supported currency. Supported: ${[...FRANKFURTER_CURRENCIES].sort().join(", ")}.`;
+
+export async function getCurrencyExchange(query: string): Promise<ToolResult> {
+  const sources: CitationSource[] = [];
+  if (!query || typeof query !== "string") {
+    return { tool: "currency_exchange", input: query, result: "Error: No currency query provided." };
+  }
+
+  const clean = query.trim();
+  const upper = clean.toUpperCase();
+
+  // Pair: "USD to EUR", "USD->EUR", "USD/EUR", "USD-EUR"
+  const pairMatch = upper.match(/\b([A-Z]{3})\s*(?:TO|->|→|INTO|\/|-)\s*([A-Z]{3})\b/);
+  if (!pairMatch) {
+    return {
+      tool: "currency_exchange",
+      input: query,
+      result: `Error: Could not parse a currency pair from "${clean}". Use e.g. "100 USD to EUR" or "JPY to INR".`,
+    };
+  }
+
+  const [, from, to] = pairMatch;
+  if (!FRANKFURTER_CURRENCIES.has(from)) {
+    return { tool: "currency_exchange", input: query, result: CURRENCY_UNSUPPORTED(from) };
+  }
+  if (!FRANKFURTER_CURRENCIES.has(to)) {
+    return { tool: "currency_exchange", input: query, result: CURRENCY_UNSUPPORTED(to) };
+  }
+
+  // Optional amount (ignore digits that belong to a date), optional historical date.
+  const dateMatch = clean.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const withoutDate = dateMatch ? clean.replace(dateMatch[1], " ") : clean;
+  const amountMatch = withoutDate.match(/\b(\d+(?:[.,]\d+)?)\b/);
+  const amount = amountMatch ? parseFloat(amountMatch[1].replace(",", ".")) : 1;
+  const dateParam = dateMatch ? `/${dateMatch[1]}` : "/latest";
+
+  const url = `https://api.frankfurter.dev/v1${dateParam}?amount=${amount}&from=${from}&to=${to}`;
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+
+    if (res.ok) {
+      const data = (await res.json()) as {
+        amount: number;
+        base: string;
+        date: string;
+        rates: Record<string, number>;
+      };
+
+      const entries = Object.entries(data.rates ?? {});
+      if (entries.length === 0) {
+        return { tool: "currency_exchange", input: query, result: `No ECB rate found for ${from} → ${to}${dateMatch ? ` on ${dateMatch[1]}` : ""}.` };
+      }
+
+      const unitRate = (value: number): string => (value / amount).toFixed(4);
+
+      const lines = entries.map(([code, value]) => {
+        const perUnit = amount === 1 ? "" : ` (1 ${from} = ${unitRate(value)} ${code})`;
+        return `- **${amount} ${from} = ${value} ${code}**${perUnit}`;
+      });
+
+      for (const [code, value] of entries) {
+        sources.push({
+          title: `ECB reference rate: ${amount} ${from} = ${value} ${code} (${data.date})`,
+          url: "https://www.frankfurter.app",
+          snippet: `1 ${from} = ${unitRate(value)} ${code} | European Central Bank reference rate via Frankfurter`,
+          tool: "currency_exchange",
+        });
+      }
+
+      return {
+        tool: "currency_exchange",
+        input: query,
+        result: `**Currency Exchange — ECB Reference Rates**\nAs of ${data.date}\n\n${lines.join("\n")}\n\nSource: [Frankfurter.app (ECB)](https://www.frankfurter.app)`,
+        sources,
+        details: data,
+      };
+    }
+
+    return { tool: "currency_exchange", input: query, result: `Frankfurter returned HTTP ${res.status} for ${from} → ${to}.` };
+  } catch (err) {
+    console.warn("Currency exchange error:", err);
+    return { tool: "currency_exchange", input: query, result: `Currency exchange failed: ${err instanceof Error ? err.message : "unknown error"}` };
+  }
 }

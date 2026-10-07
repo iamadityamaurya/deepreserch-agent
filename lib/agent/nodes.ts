@@ -19,6 +19,8 @@ import {
   getWeatherInfo,
   inspectIpWhois,
   searchRedditCommunity,
+  searchGdeltNews,
+  getCurrencyExchange,
 } from "./tools";
 
 interface LLMInstanceInfo {
@@ -401,6 +403,17 @@ export async function executeToolsNode(state: ResearchState): Promise<Partial<Re
         }
         case "reddit_community": {
           res = await searchRedditCommunity(query);
+          break;
+        }
+        case "gdelt_news":
+        case "news": {
+          res = await searchGdeltNews(query);
+          break;
+        }
+        case "currency_exchange":
+        case "currency":
+        case "fx": {
+          res = await getCurrencyExchange(query);
           break;
         }
         case "web_search":
